@@ -39,7 +39,7 @@ const Login: React.FC = () => {
           <div className="flex justify-center mb-4">
             <img alt="Yessal Logo" className="h-16 w-auto" src="/lovable-uploads/41d52430-5cd6-4c8b-a991-dfe0a0b84c18.png" />
           </div>
-          <h1 className="text-3xl text-primary-DEFAULT font-bold">Yessal Manager</h1>
+          <h1 className="text-3xl font-bold text-primary-DEFAULT">Yessal Manager</h1>
           <p className="text-gray-500 mt-2">Gestionnaire de laverie Yessal</p>
         </div>
         
