@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { ArrowLeft } from 'lucide-react';
 
 interface OrderFormData {
   formulaType: 'basic' | 'subscription' | 'weight';
@@ -26,7 +27,9 @@ interface OrderFormData {
 const NewOrder: React.FC = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const clientType = location.state?.clientType || 'registered';
+  const client = location.state?.client;
+  const clientType = location.state?.clientType || (client ? 'registered' : 'non-registered');
+  const guestContact = location.state?.guestContact || {};
   
   const [formData, setFormData] = useState<OrderFormData>({
     formulaType: 'basic',
@@ -42,6 +45,11 @@ const NewOrder: React.FC = () => {
   });
 
   const [price, setPrice] = useState(0);
+
+  useEffect(() => {
+    // Calculate initial price when component mounts
+    calculatePrice(formData);
+  }, []);
 
   // Handle form field changes
   const handleFormulaChange = (value: 'basic' | 'subscription' | 'weight') => {
@@ -122,159 +130,201 @@ const NewOrder: React.FC = () => {
     navigate('/orders');
   };
 
+  const goBack = () => {
+    navigate('/search');
+  };
+
   return (
     <div className="space-y-6 pb-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Nouvelle Commande</h1>
-        <p className="text-muted-foreground">
-          {clientType === 'registered' 
-            ? 'Créer une commande pour le client sélectionné' 
-            : 'Créer une commande sans compte client'}
-        </p>
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={goBack} className="h-8 w-8">
+          <ArrowLeft className="h-4 w-4" />
+        </Button>
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight">Nouvelle Commande</h1>
+          <p className="text-muted-foreground">
+            {clientType === 'registered' 
+              ? 'Créer une commande pour le client sélectionné' 
+              : 'Créer une commande sans compte client'}
+          </p>
+        </div>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Client info */}
-        <Card>
+        <Card className="overflow-hidden border-l-4 border-l-primary">
           <CardContent className="p-4">
             <h2 className="font-semibold mb-2">Client</h2>
-            {clientType === 'registered' ? (
+            {clientType === 'registered' && client ? (
               <div>
-                <p className="text-sm text-gray-500">Moustapha Seck</p>
-                <p className="text-sm text-gray-500">Tél: 76 543 21 98</p>
-                <p className="text-sm text-gray-500">Carte: Y10037</p>
+                <p className="text-sm text-gray-500"><strong>{client.name}</strong></p>
+                <p className="text-sm text-gray-500">Tél: {client.phone}</p>
+                <p className="text-sm text-gray-500">Carte: {client.cardNumber}</p>
               </div>
             ) : (
-              <div className="text-sm text-gray-500">
-                Non inscrit - Commande anonyme
+              <div>
+                <p className="text-sm text-gray-500"><strong>Non inscrit - Commande anonyme</strong></p>
+                {guestContact.phone && <p className="text-sm text-gray-500">Tél: {guestContact.phone}</p>}
+                {guestContact.email && <p className="text-sm text-gray-500">Email: {guestContact.email}</p>}
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* Formula type */}
-        <div className="space-y-2">
-          <h2 className="font-semibold">Formule</h2>
-          <RadioGroup 
-            value={formData.formulaType}
-            onValueChange={(value) => handleFormulaChange(value as 'basic' | 'subscription' | 'weight')}
-            className="grid grid-cols-3 gap-2"
-          >
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="basic" id="formula-basic" />
-              <Label htmlFor="formula-basic">Basique</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="subscription" id="formula-subscription" />
-              <Label htmlFor="formula-subscription">Abonnement</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <RadioGroupItem value="weight" id="formula-weight" />
-              <Label htmlFor="formula-weight">Au kilo</Label>
-            </div>
-          </RadioGroup>
-        </div>
+        {/* Two column layout for smaller form sections */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Formula type */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Formule</h2>
+              <RadioGroup 
+                value={formData.formulaType}
+                onValueChange={(value) => handleFormulaChange(value as 'basic' | 'subscription' | 'weight')}
+                className="space-y-2"
+              >
+                <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+                  <RadioGroupItem value="basic" id="formula-basic" />
+                  <Label htmlFor="formula-basic" className="flex-grow cursor-pointer">Basique</Label>
+                  <span className="text-sm text-gray-500">500 F/kg</span>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+                  <RadioGroupItem value="subscription" id="formula-subscription" />
+                  <Label htmlFor="formula-subscription" className="flex-grow cursor-pointer">Abonnement</Label>
+                  <span className="text-sm text-gray-500">400 F/kg</span>
+                </div>
+                <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+                  <RadioGroupItem value="weight" id="formula-weight" />
+                  <Label htmlFor="formula-weight" className="flex-grow cursor-pointer">Au kilo</Label>
+                  <span className="text-sm text-gray-500">450 F/kg</span>
+                </div>
+              </RadioGroup>
+            </CardContent>
+          </Card>
 
-        {/* Weight */}
-        <div className="space-y-2">
-          <h2 className="font-semibold">Poids</h2>
-          <div className="flex items-center space-x-2">
-            <Input 
-              type="number" 
-              min="0" 
-              step="0.1"
-              value={formData.weight || ''}
-              onChange={handleWeightChange}
-              className="w-24"
-            />
-            <span>kg</span>
-          </div>
+          {/* Weight */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Poids</h2>
+              <div className="flex items-center space-x-2">
+                <Input 
+                  type="number" 
+                  min="0" 
+                  step="0.1"
+                  value={formData.weight || ''}
+                  onChange={handleWeightChange}
+                  className="text-lg font-medium"
+                />
+                <span className="text-lg">kg</span>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Options */}
-        <div className="space-y-2">
-          <h2 className="font-semibold">Options</h2>
-          <div className="space-y-2">
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="option-ironing" 
-                checked={formData.options.ironing}
-                onCheckedChange={() => handleOptionChange('ironing')}
-              />
-              <Label htmlFor="option-ironing">Repassage (+100 FCFA/kg)</Label>
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="font-semibold mb-4">Options</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                <Checkbox 
+                  id="option-ironing" 
+                  checked={formData.options.ironing}
+                  onCheckedChange={() => handleOptionChange('ironing')}
+                />
+                <div className="flex-grow">
+                  <Label htmlFor="option-ironing" className="cursor-pointer">Repassage</Label>
+                  <p className="text-xs text-gray-500">+100 FCFA/kg</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                <Checkbox 
+                  id="option-stain" 
+                  checked={formData.options.stainRemoval}
+                  onCheckedChange={() => handleOptionChange('stainRemoval')}
+                />
+                <div className="flex-grow">
+                  <Label htmlFor="option-stain" className="cursor-pointer">Détachage</Label>
+                  <p className="text-xs text-gray-500">+500 FCFA</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                <Checkbox 
+                  id="option-urgent" 
+                  checked={formData.options.urgent}
+                  onCheckedChange={() => handleOptionChange('urgent')}
+                />
+                <div className="flex-grow">
+                  <Label htmlFor="option-urgent" className="cursor-pointer">Urgence</Label>
+                  <p className="text-xs text-gray-500">+15% du total</p>
+                </div>
+              </div>
+              <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                <Checkbox 
+                  id="option-delivery" 
+                  checked={formData.options.delivery}
+                  onCheckedChange={() => handleOptionChange('delivery')}
+                />
+                <div className="flex-grow">
+                  <Label htmlFor="option-delivery" className="cursor-pointer">Livraison</Label>
+                  <p className="text-xs text-gray-500">+1000 FCFA</p>
+                </div>
+              </div>
             </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="option-stain" 
-                checked={formData.options.stainRemoval}
-                onCheckedChange={() => handleOptionChange('stainRemoval')}
-              />
-              <Label htmlFor="option-stain">Détachage (+500 FCFA)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="option-urgent" 
-                checked={formData.options.urgent}
-                onCheckedChange={() => handleOptionChange('urgent')}
-              />
-              <Label htmlFor="option-urgent">Urgence (+15%)</Label>
-            </div>
-            <div className="flex items-center space-x-2">
-              <Checkbox 
-                id="option-delivery" 
-                checked={formData.options.delivery}
-                onCheckedChange={() => handleOptionChange('delivery')}
-              />
-              <Label htmlFor="option-delivery">Livraison (+1000 FCFA)</Label>
-            </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
 
-        {/* Payment method */}
-        <div className="space-y-2">
-          <h2 className="font-semibold">Mode de paiement</h2>
-          <Select onValueChange={handlePaymentMethodChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sélectionnez le mode de paiement" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="cash">Espèces</SelectItem>
-              <SelectItem value="orange_money">Orange Money</SelectItem>
-              <SelectItem value="wave">Wave</SelectItem>
-              <SelectItem value="free_money">Free Money</SelectItem>
-            </SelectContent>
-          </Select>
-        </div>
+        {/* Two column layout for payment and site */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Payment method */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Mode de paiement</h2>
+              <Select onValueChange={handlePaymentMethodChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="cash">Espèces</SelectItem>
+                  <SelectItem value="orange_money">Orange Money</SelectItem>
+                  <SelectItem value="wave">Wave</SelectItem>
+                  <SelectItem value="free_money">Free Money</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
 
-        {/* Wash site */}
-        <div className="space-y-2">
-          <h2 className="font-semibold">Site de lavage</h2>
-          <Select onValueChange={handleWashSiteChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Sélectionnez le site" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="thies_nord">Thiès Nord</SelectItem>
-              <SelectItem value="thies_sud">Thiès Sud</SelectItem>
-              <SelectItem value="thies_est">Thiès Est</SelectItem>
-            </SelectContent>
-          </Select>
+          {/* Wash site */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Site de lavage</h2>
+              <Select onValueChange={handleWashSiteChange}>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Sélectionner" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="thies_nord">Thiès Nord</SelectItem>
+                  <SelectItem value="thies_sud">Thiès Sud</SelectItem>
+                  <SelectItem value="thies_est">Thiès Est</SelectItem>
+                </SelectContent>
+              </Select>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Order summary */}
-        <Card className="bg-gray-50">
+        <Card className="bg-primary/5">
           <CardContent className="p-4">
-            <h2 className="font-semibold mb-2">Résumé</h2>
-            <div className="space-y-1">
-              <div className="flex justify-between">
+            <h2 className="font-semibold text-lg mb-3">Résumé</h2>
+            <div className="space-y-2">
+              <div className="flex justify-between border-b pb-2">
                 <span>Poids total</span>
                 <span className="font-medium">{formData.weight} kg</span>
               </div>
-              <div className="flex justify-between">
-                <span>Prix total</span>
-                <span className="font-bold text-lg">{price.toLocaleString()} FCFA</span>
+              <div className="flex justify-between pt-1">
+                <span className="text-lg">Prix total</span>
+                <span className="font-bold text-xl text-primary">{price.toLocaleString()} FCFA</span>
               </div>
-              <div className="flex justify-between text-xs text-gray-500">
+              <div className="flex justify-between text-xs text-gray-500 mt-2">
                 <span>Date de commande</span>
                 <span>{new Date().toLocaleDateString()}</span>
               </div>
@@ -282,7 +332,7 @@ const NewOrder: React.FC = () => {
           </CardContent>
         </Card>
 
-        <Button type="submit" className="w-full bg-primary hover:bg-primary/90">
+        <Button type="submit" className="w-full bg-primary hover:bg-primary/90 text-lg py-6">
           Enregistrer la commande
         </Button>
       </form>

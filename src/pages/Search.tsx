@@ -7,12 +7,18 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
 import { toast } from "sonner";
+import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
 
 interface Client {
   id: string;
   name: string;
   phone: string;
   cardNumber: string;
+}
+
+interface GuestContact {
+  phone?: string;
+  email?: string;
 }
 
 const mockClients: Client[] = [
@@ -29,6 +35,8 @@ const Search: React.FC = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const [showSearchResults, setShowSearchResults] = useState(true);
+  const [guestContact, setGuestContact] = useState<GuestContact>({});
+  const [showGuestForm, setShowGuestForm] = useState(false);
   const navigate = useNavigate();
 
   // Effet pour la recherche dynamique
@@ -47,35 +55,44 @@ const Search: React.FC = () => {
     }
   }, [searchQuery]);
 
-  const handleSearch = () => {
-    // Cette fonction reste pour la soumission explicite mais 
-    // la recherche se fait déjà dynamiquement avec l'effet ci-dessus
-  };
-
   const resetSearch = () => {
     setSearchQuery('');
     setSearchResults([]);
     setSelectedClient(null);
     setShowSearchResults(true);
+    setShowGuestForm(false);
+    setGuestContact({});
   };
 
-  const startScanning = () => {
+  const startScanning = async () => {
     setIsScanning(true);
-    // Simuler la lecture d'un code QR
-    setTimeout(() => {
-      setIsScanning(false);
-      // Supposons que le QR code contient l'ID du client
-      const scannedId = '3'; // ID simulé du client
-      const foundClient = mockClients.find(client => client.id === scannedId);
+    
+    try {
+      // Call the actual scanner utility
+      const qrData = await startQrScanner();
+      const parsedData = parseQrCodeData(qrData);
       
-      if (foundClient) {
-        setSelectedClient(foundClient);
-        setSearchResults([foundClient]);
-        toast.success(`Client trouvé: ${foundClient.name}`);
+      if (parsedData && parsedData.clientId) {
+        const foundClient = mockClients.find(client => client.id === parsedData.clientId);
+        
+        if (foundClient) {
+          setSelectedClient(foundClient);
+          setSearchResults([foundClient]);
+          toast.success(`Client trouvé: ${foundClient.name}`);
+          
+          // Redirect directly to new order with this client
+          navigate('/new-order', { state: { client: foundClient } });
+        } else {
+          toast.error("Aucun client trouvé avec ce code");
+        }
       } else {
-        toast.error("Aucun client trouvé avec ce code");
+        toast.error("QR code invalide");
       }
-    }, 2000);
+    } catch (error) {
+      toast.error("Erreur lors du scan");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
   const selectClient = (client: Client) => {
@@ -83,134 +100,192 @@ const Search: React.FC = () => {
     navigate('/new-order', { state: { client } });
   };
 
-  const createNewOrder = () => {
+  const showGuestContactForm = () => {
+    setShowGuestForm(true);
+  };
+
+  const handleGuestContactSubmit = () => {
+    // Store contact info and proceed to order creation
+    navigate('/new-order', { 
+      state: { 
+        clientType: 'non-registered',
+        guestContact 
+      } 
+    });
+  };
+
+  const skipGuestContact = () => {
+    // Proceed without contact info
     navigate('/new-order', { state: { clientType: 'non-registered' } });
   };
 
   return (
     <div className="space-y-6 pb-8">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Recherche Client</h1>
+        <h1 className="text-2xl font-bold tracking-tight">Commande Client</h1>
         <p className="text-muted-foreground">
           Rechercher un client ou scanner sa carte
         </p>
       </div>
 
-      <Tabs defaultValue="search">
-        <TabsList className="grid grid-cols-2">
-          <TabsTrigger value="search">Recherche</TabsTrigger>
-          <TabsTrigger value="scan">Scanner</TabsTrigger>
-        </TabsList>
-        
-        <TabsContent value="search" className="space-y-4">
-          <div className="flex gap-2 relative">
-            <Input 
-              placeholder="Nom, téléphone ou numéro de carte" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pr-10"
-            />
-            {searchQuery && (
-              <Button 
-                size="sm" 
-                variant="ghost" 
-                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0" 
-                onClick={resetSearch}
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            )}
-            <Button type="button" onClick={handleSearch}>
-              <SearchIcon className="h-4 w-4 mr-2" />
-              Rechercher
+      {showGuestForm ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Coordonnées du client (facultatif)</h2>
+          <p className="text-sm text-gray-500">
+            Ces informations seront utilisées pour l'envoi de la facture. Le client peut choisir de ne pas les fournir.
+          </p>
+          
+          <div className="space-y-4">
+            <div>
+              <label htmlFor="guestPhone" className="text-sm font-medium">
+                Numéro de téléphone
+              </label>
+              <Input 
+                id="guestPhone" 
+                type="tel" 
+                placeholder="Ex: 77 123 45 67" 
+                value={guestContact.phone || ''}
+                onChange={(e) => setGuestContact({...guestContact, phone: e.target.value})}
+              />
+            </div>
+            
+            <div>
+              <label htmlFor="guestEmail" className="text-sm font-medium">
+                Email
+              </label>
+              <Input 
+                id="guestEmail" 
+                type="email" 
+                placeholder="Ex: client@example.com" 
+                value={guestContact.email || ''}
+                onChange={(e) => setGuestContact({...guestContact, email: e.target.value})}
+              />
+            </div>
+          </div>
+          
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1"
+              variant="default" 
+              onClick={handleGuestContactSubmit}
+            >
+              Continuer
+            </Button>
+            <Button 
+              className="flex-1"
+              variant="outline" 
+              onClick={skipGuestContact}
+            >
+              Passer cette étape
             </Button>
           </div>
           
-          {showSearchResults && searchResults.length > 0 ? (
-            <div className="space-y-2">
-              {searchResults.map((client) => (
-                <Card 
-                  key={client.id} 
-                  className="cursor-pointer hover:bg-gray-50" 
-                  onClick={() => selectClient(client)}
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={resetSearch}
+          >
+            Annuler et revenir à la recherche
+          </Button>
+        </div>
+      ) : (
+        <Tabs defaultValue="search">
+          <TabsList className="grid grid-cols-2">
+            <TabsTrigger value="search">Recherche</TabsTrigger>
+            <TabsTrigger value="scan">Scanner</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="search" className="space-y-4">
+            <div className="flex gap-2 relative">
+              <Input 
+                placeholder="Nom, téléphone ou numéro de carte" 
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pr-10"
+              />
+              {searchQuery && (
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0" 
+                  onClick={resetSearch}
                 >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium">{client.name}</div>
-                        <div className="text-sm text-gray-500">Tél: {client.phone}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-primary font-semibold">{client.cardNumber}</div>
-                      </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
-          ) : searchQuery ? (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Aucun client trouvé</p>
-              <Button className="mt-4" onClick={resetSearch}>
-                Nouvelle recherche
+                  <X className="h-4 w-4" />
+                </Button>
+              )}
+              <Button type="button" onClick={() => setSearchQuery(searchQuery)}>
+                <SearchIcon className="h-4 w-4 mr-2" />
+                Rechercher
               </Button>
             </div>
-          ) : null}
-        </TabsContent>
-        
-        <TabsContent value="scan" className="space-y-4">
-          <div className="bg-gray-100 rounded-lg aspect-square flex items-center justify-center">
-            {isScanning ? (
-              <div className="text-center">
-                <div className="animate-pulse">
-                  <ScanQrCode className="h-12 w-12 text-primary mx-auto" />
-                </div>
-                <p className="mt-4">Scan en cours...</p>
+            
+            {showSearchResults && searchResults.length > 0 ? (
+              <div className="space-y-2">
+                {searchResults.map((client) => (
+                  <Card 
+                    key={client.id} 
+                    className="cursor-pointer hover:bg-gray-50" 
+                    onClick={() => selectClient(client)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{client.name}</div>
+                          <div className="text-sm text-gray-500">Tél: {client.phone}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-primary font-semibold">{client.cardNumber}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
               </div>
-            ) : (
-              <div className="text-center">
-                <ScanQrCode className="h-12 w-12 text-gray-400 mx-auto" />
-                <p className="mt-4">Prêt à scanner</p>
-                <Button className="mt-4" onClick={startScanning}>
-                  Démarrer le scan
+            ) : searchQuery ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Aucun client trouvé</p>
+                <Button className="mt-4" onClick={resetSearch}>
+                  Nouvelle recherche
                 </Button>
               </div>
-            )}
-          </div>
+            ) : null}
+          </TabsContent>
           
-          {selectedClient && (
-            <div className="space-y-2">
-              <Card className="cursor-pointer hover:bg-gray-50" onClick={() => selectClient(selectedClient)}>
-                <CardContent className="p-4">
-                  <div className="flex justify-between items-center">
-                    <div>
-                      <div className="font-medium">{selectedClient.name}</div>
-                      <div className="text-sm text-gray-500">Tél: {selectedClient.phone}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-primary font-semibold">{selectedClient.cardNumber}</div>
-                    </div>
+          <TabsContent value="scan" className="space-y-4">
+            <div className="bg-gray-100 rounded-lg aspect-square flex items-center justify-center">
+              {isScanning ? (
+                <div className="text-center">
+                  <div className="animate-pulse">
+                    <ScanQrCode className="h-12 w-12 text-primary mx-auto" />
                   </div>
-                </CardContent>
-              </Card>
-              <Button className="w-full" onClick={resetSearch} variant="outline">
-                Nouvelle recherche
-              </Button>
+                  <p className="mt-4">Scan en cours...</p>
+                </div>
+              ) : (
+                <div className="text-center">
+                  <ScanQrCode className="h-12 w-12 text-gray-400 mx-auto" />
+                  <p className="mt-4">Prêt à scanner</p>
+                  <Button className="mt-4" onClick={startScanning}>
+                    Démarrer le scan
+                  </Button>
+                </div>
+              )}
             </div>
-          )}
-        </TabsContent>
-      </Tabs>
+          </TabsContent>
+        </Tabs>
+      )}
 
-      <div className="border-t border-gray-200 pt-4">
-        <Button 
-          variant="outline" 
-          className="w-full flex items-center justify-center gap-2"
-          onClick={createNewOrder}
-        >
-          <User className="h-4 w-4" />
-          Commande sans compte client
-        </Button>
-      </div>
+      {!showGuestForm && (
+        <div className="border-t border-gray-200 pt-4">
+          <Button 
+            variant="outline" 
+            className="w-full flex items-center justify-center gap-2"
+            onClick={showGuestContactForm}
+          >
+            <User className="h-4 w-4" />
+            Commande sans compte client
+          </Button>
+        </div>
+      )}
     </div>
   );
 };
