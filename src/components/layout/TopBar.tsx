@@ -1,23 +1,13 @@
-
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
 import { Search, User } from 'lucide-react';
-import { 
-  DropdownMenu, 
-  DropdownMenuContent, 
-  DropdownMenuItem, 
-  DropdownMenuLabel, 
-  DropdownMenuSeparator, 
-  DropdownMenuTrigger 
-} from "@/components/ui/dropdown-menu";
-
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuLabel, DropdownMenuSeparator, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 export const TopBar: React.FC = () => {
-  return (
-    <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
+  return <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between p-4">
         <Link to="/dashboard" className="flex items-center">
-          <img src="/yessal-logo.png" alt="Yessal Logo" className="h-8 w-auto mr-2" />
+          <img alt="Yessal Logo" className="h-8 w-auto mr-2" src="https://yessal.sn/logo_yessal.png" />
           <span className="font-bold text-xl text-primary">Yessal Manager</span>
         </Link>
         <div className="flex items-center gap-2">
@@ -54,6 +44,5 @@ export const TopBar: React.FC = () => {
           </DropdownMenu>
         </div>
       </div>
-    </header>
-  );
+    </header>;
 };
