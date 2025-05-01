@@ -62,6 +62,8 @@ export const PendingOrderNotification: React.FC<PendingOrderNotificationProps> =
         setCurrentOrderIndex(prevIndex => 
           prevIndex < pendingOrders.length - 1 ? prevIndex + 1 : 0
         );
+      } else {
+        setOpen(false);
       }
     }, 10000);
 
@@ -73,7 +75,17 @@ export const PendingOrderNotification: React.FC<PendingOrderNotificationProps> =
       const orderId = pendingOrders[currentOrderIndex].id;
       onAccept(orderId);
       toast.success(`Commande #${orderId} acceptée`);
-      setOpen(false);
+      
+      // Check if there are more pending orders
+      if (pendingOrders.length > 1) {
+        // Move to the next order
+        setCurrentOrderIndex(prevIndex => 
+          prevIndex < pendingOrders.length - 2 ? prevIndex : 0
+        );
+      } else {
+        // Close the dialog if this was the last order
+        setOpen(false);
+      }
     }
   };
 
@@ -82,7 +94,17 @@ export const PendingOrderNotification: React.FC<PendingOrderNotificationProps> =
       const orderId = pendingOrders[currentOrderIndex].id;
       onReject(orderId);
       toast.error(`Commande #${orderId} refusée`);
-      setOpen(false);
+      
+      // Check if there are more pending orders
+      if (pendingOrders.length > 1) {
+        // Move to the next order
+        setCurrentOrderIndex(prevIndex => 
+          prevIndex < pendingOrders.length - 2 ? prevIndex : 0
+        );
+      } else {
+        // Close the dialog if this was the last order
+        setOpen(false);
+      }
     }
   };
 

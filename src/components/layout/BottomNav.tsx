@@ -23,7 +23,7 @@ export const BottomNav: React.FC = () => {
         <NavItem 
           to="/search" 
           icon={<ShoppingCart className="h-5 w-5" />} 
-          label="Nouvelle Commande" 
+          label="Nouvelle" 
           isActive={isActive('/search') || isActive('/new-order')} 
         />
         <NavItem 

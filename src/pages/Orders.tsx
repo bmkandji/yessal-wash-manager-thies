@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,6 +24,15 @@ interface Order {
   formulaType?: string;
   washSite?: string;
   driverId?: string;
+  driverName?: string;
+  accepted?: boolean;
+  clientDetails?: {
+    firstName?: string;
+    lastName?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
 const mockOrders: Order[] = [
@@ -153,8 +161,20 @@ const Orders: React.FC = () => {
 
   const assignDriver = (driverId: string) => {
     if (selectedOrderId) {
+      // Map of driver IDs to names
+      const driverMap: Record<string, string> = {
+        'drv1': 'Mamadou Diop',
+        'drv2': 'Fatou Ndiaye',
+        'drv3': 'Ousmane Seck',
+        'drv4': 'Aissatou Fall'
+      };
+      
       setOrders(prev => prev.map(order => 
-        order.id === selectedOrderId ? { ...order, driverId } : order
+        order.id === selectedOrderId ? { 
+          ...order, 
+          driverId,
+          driverName: driverMap[driverId] || 'Livreur assigné'
+        } : order
       ));
       setSelectedOrderId(null);
     }
@@ -162,7 +182,7 @@ const Orders: React.FC = () => {
 
   const handleAcceptOrder = (orderId: string) => {
     setOrders(prev => prev.map(order => 
-      order.id === orderId ? { ...order, status: 'collected' } : order
+      order.id === orderId ? { ...order, accepted: true } : order
     ));
   };
 
@@ -170,9 +190,11 @@ const Orders: React.FC = () => {
     setOrders(prev => prev.filter(order => order.id !== orderId));
   };
 
-  // Get pending orders with delivery option
+  // Get pending orders with delivery option that haven't been accepted yet
   const pendingDeliveryOrders = orders.filter(
-    order => order.status === 'pending' && order.options?.delivery
+    order => order.status === 'pending' && 
+    order.options?.delivery && 
+    !order.accepted
   );
 
   return (

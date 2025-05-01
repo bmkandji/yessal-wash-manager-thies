@@ -1,7 +1,6 @@
-
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { ArrowLeft, Download, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, Download, ArrowRight, Check, Truck } from 'lucide-react';
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -14,6 +13,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Input } from "@/components/ui/input";
+import { DeliveryDriverAssignmentDialog } from '@/components/dialogs/DeliveryDriverAssignmentDialog';
 
 interface Order {
   id: string;
@@ -29,6 +29,8 @@ interface Order {
     urgent: boolean;
     delivery: boolean;
   };
+  driverId?: string;
+  driverName?: string;
   formulaType?: string;
   washSite?: string;
   clientDetails?: {
@@ -52,6 +54,7 @@ const OrderDetail: React.FC = () => {
     phone: '',
     email: ''
   });
+  const [driverDialogOpen, setDriverDialogOpen] = useState(false);
   
   useEffect(() => {
     if (location.state?.order) {
@@ -99,6 +102,13 @@ const OrderDetail: React.FC = () => {
   
   const handleStatusChange = (newStatus: string) => {
     setStatus(newStatus as Order['status']);
+    setOrder(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        status: newStatus as Order['status']
+      };
+    });
     toast.success(`Statut mis à jour: ${getStatusLabel(newStatus as Order['status'])}`);
   };
   
@@ -124,7 +134,29 @@ const OrderDetail: React.FC = () => {
     });
   };
 
+  const assignDriver = (driverId: string) => {
+    const driverMap: Record<string, string> = {
+      'drv1': 'Mamadou Diop',
+      'drv2': 'Fatou Ndiaye',
+      'drv3': 'Ousmane Seck',
+      'drv4': 'Aissatou Fall'
+    };
+    
+    setOrder(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        driverId: driverId,
+        driverName: driverMap[driverId] || 'Livreur assigné'
+      };
+    });
+    
+    toast.success(`Livreur assigné à la commande #${order.id}`);
+    setDriverDialogOpen(false);
+  };
+
   const isNoAccountOrder = order.clientName === 'Non inscrit' || order.clientName === 'Sans compte';
+  const hasDeliveryOption = order.options?.delivery;
 
   return (
     <div className="space-y-6 pb-8">
@@ -225,6 +257,32 @@ const OrderDetail: React.FC = () => {
           </CardContent>
         </Card>
       </div>
+
+      {/* Delivery driver section */}
+      {hasDeliveryOption && (
+        <Card>
+          <CardContent className="p-4">
+            <h2 className="font-semibold mb-3">Information de livraison</h2>
+            
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm text-gray-500">Livreur assigné</p>
+                <p className="font-medium">{order.driverName || "Aucun livreur assigné"}</p>
+              </div>
+              
+              <Button
+                variant="outline"
+                size="sm"
+                className="flex items-center gap-2"
+                onClick={() => setDriverDialogOpen(true)}
+              >
+                <Truck className="h-4 w-4" />
+                {order.driverName ? "Changer de livreur" : "Affecter un livreur"}
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Order details */}
       <Card>
@@ -357,6 +415,7 @@ const OrderDetail: React.FC = () => {
                 handleStatusChange(nextStatus);
               }}
               className="flex-1 flex items-center justify-center gap-1"
+              disabled={hasDeliveryOption && status === 'pending' && !order.driverId}
             >
               Passer à l'étape suivante
               <ArrowRight className="h-4 w-4" />
@@ -364,6 +423,14 @@ const OrderDetail: React.FC = () => {
           </>
         )}
       </div>
+      
+      {/* Driver Assignment Dialog */}
+      <DeliveryDriverAssignmentDialog 
+        open={driverDialogOpen} 
+        onOpenChange={setDriverDialogOpen}
+        orderId={order.id}
+        onAssign={assignDriver}
+      />
     </div>
   );
 };

@@ -15,6 +15,16 @@ import OrderDetail from "./pages/OrderDetail";
 import Profile from "./pages/Profile";
 import NotFound from "./pages/NotFound";
 
+// Preload audio file for notifications
+const notificationSound = new Audio('/notification.mp3');
+const preloadAudio = () => {
+  notificationSound.load();
+  document.removeEventListener('click', preloadAudio);
+};
+
+// Add event listener to preload audio after user interaction
+document.addEventListener('click', preloadAudio);
+
 const queryClient = new QueryClient();
 
 const App = () => (
