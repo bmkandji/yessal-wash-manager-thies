@@ -1,0 +1,246 @@
+
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from '@/components/ui/button';
+import { Package, Filter } from 'lucide-react';
+import { toast } from "sonner";
+
+interface Order {
+  id: string;
+  clientName: string;
+  price: number;
+  weight: number;
+  status: 'pending' | 'collected' | 'ironed' | 'delivered';
+  date: string;
+  time: string;
+}
+
+const mockOrders: Order[] = [
+  {
+    id: '10548',
+    clientName: 'Abdou Diop',
+    price: 3500,
+    weight: 3,
+    status: 'pending',
+    date: '05/05/2025',
+    time: '10:30'
+  },
+  {
+    id: '10547',
+    clientName: 'Fatou Ndiaye',
+    price: 5000,
+    weight: 4.5,
+    status: 'collected',
+    date: '05/05/2025',
+    time: '09:15'
+  },
+  {
+    id: '10546',
+    clientName: 'Moustapha Seck',
+    price: 2800,
+    weight: 2,
+    status: 'ironed',
+    date: '04/05/2025',
+    time: '16:45'
+  },
+  {
+    id: '10545',
+    clientName: 'Aminata Fall',
+    price: 7200,
+    weight: 6,
+    status: 'collected',
+    date: '04/05/2025',
+    time: '14:20'
+  },
+  {
+    id: '10544',
+    clientName: 'Ousmane Diallo',
+    price: 4500,
+    weight: 3.5,
+    status: 'delivered',
+    date: '04/05/2025',
+    time: '11:05'
+  }
+];
+
+const Orders: React.FC = () => {
+  const [activeTab, setActiveTab] = useState('all');
+  const navigate = useNavigate();
+
+  const filterOrders = (status: string) => {
+    if (status === 'all') return mockOrders;
+    return mockOrders.filter(order => order.status === status);
+  };
+
+  const updateOrderStatus = (orderId: string, newStatus: Order['status']) => {
+    // In a real app, this would make an API call to update the status
+    toast.success(`Commande #${orderId} mise à jour: ${getStatusLabel(newStatus)}`);
+  };
+
+  const getStatusLabel = (status: Order['status']) => {
+    switch(status) {
+      case 'pending': return 'En attente';
+      case 'collected': return 'Collecté';
+      case 'ironed': return 'Repassé';
+      case 'delivered': return 'Livré';
+      default: return status;
+    }
+  };
+
+  const getStatusColor = (status: Order['status']) => {
+    switch(status) {
+      case 'pending': return 'bg-blue-100 text-blue-800';
+      case 'collected': return 'bg-yellow-100 text-yellow-800';
+      case 'ironed': return 'bg-purple-100 text-purple-800';
+      case 'delivered': return 'bg-green-100 text-green-800';
+      default: return 'bg-gray-100 text-gray-800';
+    }
+  };
+
+  const getNextStatus = (status: Order['status']): Order['status'] | null => {
+    switch(status) {
+      case 'pending': return 'collected';
+      case 'collected': return 'ironed';
+      case 'ironed': return 'delivered';
+      case 'delivered': return null;
+    }
+  };
+
+  return (
+    <div className="space-y-6 pb-8">
+      <div className="flex justify-between items-center">
+        <h1 className="text-2xl font-bold tracking-tight">Commandes</h1>
+        <Button variant="outline" size="icon">
+          <Filter className="h-4 w-4" />
+        </Button>
+      </div>
+
+      <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
+        <TabsList className="grid grid-cols-4">
+          <TabsTrigger value="all">Tout</TabsTrigger>
+          <TabsTrigger value="pending">En attente</TabsTrigger>
+          <TabsTrigger value="collected">Collecté</TabsTrigger>
+          <TabsTrigger value="delivered">Livré</TabsTrigger>
+        </TabsList>
+        
+        <TabsContent value="all" className="space-y-4 mt-4">
+          {filterOrders('all').map((order) => (
+            <OrderCard 
+              key={order.id}
+              order={order}
+              getStatusColor={getStatusColor}
+              getStatusLabel={getStatusLabel}
+              getNextStatus={getNextStatus}
+              updateOrderStatus={updateOrderStatus}
+            />
+          ))}
+        </TabsContent>
+        
+        <TabsContent value="pending" className="space-y-4 mt-4">
+          {filterOrders('pending').map((order) => (
+            <OrderCard 
+              key={order.id}
+              order={order}
+              getStatusColor={getStatusColor}
+              getStatusLabel={getStatusLabel}
+              getNextStatus={getNextStatus}
+              updateOrderStatus={updateOrderStatus}
+            />
+          ))}
+        </TabsContent>
+        
+        <TabsContent value="collected" className="space-y-4 mt-4">
+          {filterOrders('collected').map((order) => (
+            <OrderCard 
+              key={order.id}
+              order={order}
+              getStatusColor={getStatusColor}
+              getStatusLabel={getStatusLabel}
+              getNextStatus={getNextStatus}
+              updateOrderStatus={updateOrderStatus}
+            />
+          ))}
+        </TabsContent>
+        
+        <TabsContent value="delivered" className="space-y-4 mt-4">
+          {filterOrders('delivered').map((order) => (
+            <OrderCard 
+              key={order.id}
+              order={order}
+              getStatusColor={getStatusColor}
+              getStatusLabel={getStatusLabel}
+              getNextStatus={getNextStatus}
+              updateOrderStatus={updateOrderStatus}
+            />
+          ))}
+        </TabsContent>
+      </Tabs>
+
+      <div className="flex justify-center">
+        <Button 
+          variant="outline"
+          className="w-full flex items-center justify-center gap-2"
+          onClick={() => navigate('/new-order')}
+        >
+          <Package className="h-4 w-4" />
+          Nouvelle commande
+        </Button>
+      </div>
+    </div>
+  );
+};
+
+interface OrderCardProps {
+  order: Order;
+  getStatusColor: (status: Order['status']) => string;
+  getStatusLabel: (status: Order['status']) => string;
+  getNextStatus: (status: Order['status']) => Order['status'] | null;
+  updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
+}
+
+const OrderCard: React.FC<OrderCardProps> = ({
+  order,
+  getStatusColor,
+  getStatusLabel,
+  getNextStatus,
+  updateOrderStatus
+}) => {
+  const nextStatus = getNextStatus(order.status);
+
+  return (
+    <Card className="card-shadow">
+      <CardContent className="p-4">
+        <div className="flex justify-between items-center">
+          <div>
+            <div className="font-medium">Commande #{order.id}</div>
+            <div className="text-sm text-gray-500">Client: {order.clientName}</div>
+          </div>
+          <div className="text-right">
+            <div className="text-primary font-semibold">{order.price.toLocaleString()} FCFA</div>
+            <div className="text-xs text-gray-500">{order.date} {order.time}</div>
+          </div>
+        </div>
+        <div className="mt-3 flex justify-between items-center">
+          <span className={`text-xs rounded-full px-2 py-1 ${getStatusColor(order.status)}`}>
+            {getStatusLabel(order.status)}
+          </span>
+          <span className="text-xs text-gray-500">{order.weight} kg</span>
+        </div>
+        {nextStatus && (
+          <Button
+            variant="outline"
+            size="sm"
+            className="w-full mt-2"
+            onClick={() => updateOrderStatus(order.id, nextStatus)}
+          >
+            Passer à "{getStatusLabel(nextStatus)}"
+          </Button>
+        )}
+      </CardContent>
+    </Card>
+  );
+};
+
+export default Orders;
