@@ -1,4 +1,3 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -6,18 +5,16 @@ import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-
 const Login: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
-
   const handleEmailLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate login process
     setTimeout(() => {
       setIsLoading(false);
@@ -25,11 +22,10 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     }, 1000);
   };
-
   const handlePhoneLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    
+
     // Simulate phone login process
     setTimeout(() => {
       setIsLoading(false);
@@ -37,15 +33,13 @@ const Login: React.FC = () => {
       navigate('/dashboard');
     }, 1000);
   };
-
-  return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
+  return <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
       <div className="w-full max-w-md">
         <div className="mb-8 text-center">
           <div className="flex justify-center mb-4">
-            <img src="/yessal-logo.png" alt="Yessal Logo" className="h-16 w-auto" />
+            <img alt="Yessal Logo" className="h-16 w-auto" src="/lovable-uploads/41d52430-5cd6-4c8b-a991-dfe0a0b84c18.png" />
           </div>
-          <h1 className="text-3xl font-bold text-gray-900">Yessal Manager</h1>
+          <h1 className="text-3xl font-bold text-primary-DEFAULT">Yessal Manager</h1>
           <p className="text-gray-500 mt-2">Gestionnaire de laverie Yessal</p>
         </div>
         
@@ -67,34 +61,17 @@ const Login: React.FC = () => {
                     <label htmlFor="email" className="text-sm font-medium">
                       Email
                     </label>
-                    <Input
-                      id="email"
-                      type="email"
-                      placeholder="manager@yessal.sn"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+                    <Input id="email" type="email" placeholder="manager@yessal.sn" value={email} onChange={e => setEmail(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="password" className="text-sm font-medium">
                       Mot de passe
                     </label>
-                    <Input
-                      id="password"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
+                    <Input id="password" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                    disabled={isLoading}
-                  >
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading ? "Connexion en cours..." : "Se connecter"}
                   </Button>
                 </CardFooter>
@@ -108,34 +85,17 @@ const Login: React.FC = () => {
                     <label htmlFor="phone" className="text-sm font-medium">
                       Numéro de téléphone
                     </label>
-                    <Input
-                      id="phone"
-                      type="tel"
-                      placeholder="77 123 45 67"
-                      value={phoneNumber}
-                      onChange={(e) => setPhoneNumber(e.target.value)}
-                      required
-                    />
+                    <Input id="phone" type="tel" placeholder="77 123 45 67" value={phoneNumber} onChange={e => setPhoneNumber(e.target.value)} required />
                   </div>
                   <div className="space-y-2">
                     <label htmlFor="password" className="text-sm font-medium">
                       Mot de passe
                     </label>
-                    <Input
-                      id="password-phone"
-                      type="password"
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      required
-                    />
+                    <Input id="password-phone" type="password" value={password} onChange={e => setPassword(e.target.value)} required />
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button
-                    type="submit"
-                    className="w-full bg-primary hover:bg-primary/90"
-                    disabled={isLoading}
-                  >
+                  <Button type="submit" className="w-full bg-primary hover:bg-primary/90" disabled={isLoading}>
                     {isLoading ? "Connexion en cours..." : "Se connecter"}
                   </Button>
                 </CardFooter>
@@ -144,8 +104,6 @@ const Login: React.FC = () => {
           </Tabs>
         </Card>
       </div>
-    </div>
-  );
+    </div>;
 };
-
 export default Login;
