@@ -1,11 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search as SearchIcon, ScanQrCode, User } from 'lucide-react';
+import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
+import { toast } from "sonner";
 
 interface Client {
   id: string;
@@ -26,33 +27,60 @@ const Search: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Client[]>([]);
   const [isScanning, setIsScanning] = useState(false);
+  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
+  const [showSearchResults, setShowSearchResults] = useState(true);
   const navigate = useNavigate();
 
+  // Effet pour la recherche dynamique
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      // Filtrer les clients en fonction de la recherche
+      const results = mockClients.filter(client => 
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.phone.replace(/\s/g, '').includes(searchQuery.replace(/\s/g, '')) ||
+        client.cardNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } else {
+      setSearchResults([]);
+    }
+  }, [searchQuery]);
+
   const handleSearch = () => {
-    if (!searchQuery.trim()) return;
-    
-    // Filter clients based on search query
-    const results = mockClients.filter(client => 
-      client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      client.phone.replace(/\s/g, '').includes(searchQuery.replace(/\s/g, '')) ||
-      client.cardNumber.toLowerCase().includes(searchQuery.toLowerCase())
-    );
-    
-    setSearchResults(results);
+    // Cette fonction reste pour la soumission explicite mais 
+    // la recherche se fait déjà dynamiquement avec l'effet ci-dessus
+  };
+
+  const resetSearch = () => {
+    setSearchQuery('');
+    setSearchResults([]);
+    setSelectedClient(null);
+    setShowSearchResults(true);
   };
 
   const startScanning = () => {
     setIsScanning(true);
-    // Simulate scanning process
+    // Simuler la lecture d'un code QR
     setTimeout(() => {
       setIsScanning(false);
-      // Pretend we found a client with the QR code
-      setSearchResults([mockClients[2]]);
+      // Supposons que le QR code contient l'ID du client
+      const scannedId = '3'; // ID simulé du client
+      const foundClient = mockClients.find(client => client.id === scannedId);
+      
+      if (foundClient) {
+        setSelectedClient(foundClient);
+        setSearchResults([foundClient]);
+        toast.success(`Client trouvé: ${foundClient.name}`);
+      } else {
+        toast.error("Aucun client trouvé avec ce code");
+      }
     }, 2000);
   };
 
-  const selectClient = (clientId: string) => {
-    navigate(`/clients/${clientId}`);
+  const selectClient = (client: Client) => {
+    setSelectedClient(client);
+    navigate('/new-order', { state: { client } });
   };
 
   const createNewOrder = () => {
@@ -75,25 +103,36 @@ const Search: React.FC = () => {
         </TabsList>
         
         <TabsContent value="search" className="space-y-4">
-          <div className="flex gap-2">
+          <div className="flex gap-2 relative">
             <Input 
               placeholder="Nom, téléphone ou numéro de carte" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              className="pr-10"
             />
+            {searchQuery && (
+              <Button 
+                size="sm" 
+                variant="ghost" 
+                className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0" 
+                onClick={resetSearch}
+              >
+                <X className="h-4 w-4" />
+              </Button>
+            )}
             <Button type="button" onClick={handleSearch}>
               <SearchIcon className="h-4 w-4 mr-2" />
               Rechercher
             </Button>
           </div>
           
-          {searchResults.length > 0 ? (
+          {showSearchResults && searchResults.length > 0 ? (
             <div className="space-y-2">
               {searchResults.map((client) => (
                 <Card 
                   key={client.id} 
                   className="cursor-pointer hover:bg-gray-50" 
-                  onClick={() => selectClient(client.id)}
+                  onClick={() => selectClient(client)}
                 >
                   <CardContent className="p-4">
                     <div className="flex justify-between items-center">
@@ -112,6 +151,9 @@ const Search: React.FC = () => {
           ) : searchQuery ? (
             <div className="text-center py-8">
               <p className="text-gray-500">Aucun client trouvé</p>
+              <Button className="mt-4" onClick={resetSearch}>
+                Nouvelle recherche
+              </Button>
             </div>
           ) : null}
         </TabsContent>
@@ -136,27 +178,24 @@ const Search: React.FC = () => {
             )}
           </div>
           
-          {searchResults.length > 0 && (
+          {selectedClient && (
             <div className="space-y-2">
-              {searchResults.map((client) => (
-                <Card 
-                  key={client.id} 
-                  className="cursor-pointer hover:bg-gray-50" 
-                  onClick={() => selectClient(client.id)}
-                >
-                  <CardContent className="p-4">
-                    <div className="flex justify-between items-center">
-                      <div>
-                        <div className="font-medium">{client.name}</div>
-                        <div className="text-sm text-gray-500">Tél: {client.phone}</div>
-                      </div>
-                      <div className="text-right">
-                        <div className="text-primary font-semibold">{client.cardNumber}</div>
-                      </div>
+              <Card className="cursor-pointer hover:bg-gray-50" onClick={() => selectClient(selectedClient)}>
+                <CardContent className="p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <div className="font-medium">{selectedClient.name}</div>
+                      <div className="text-sm text-gray-500">Tél: {selectedClient.phone}</div>
                     </div>
-                  </CardContent>
-                </Card>
-              ))}
+                    <div className="text-right">
+                      <div className="text-primary font-semibold">{selectedClient.cardNumber}</div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+              <Button className="w-full" onClick={resetSearch} variant="outline">
+                Nouvelle recherche
+              </Button>
             </div>
           )}
         </TabsContent>

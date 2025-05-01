@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import Search from "./pages/Search";
 import NewOrder from "./pages/NewOrder";
 import Orders from "./pages/Orders";
-import Clients from "./pages/Clients";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -29,7 +28,6 @@ const App = () => (
             <Route path="/search" element={<Search />} />
             <Route path="/new-order" element={<NewOrder />} />
             <Route path="/orders" element={<Orders />} />
-            <Route path="/clients" element={<Clients />} />
           </Route>
           <Route path="*" element={<NotFound />} />
         </Routes>

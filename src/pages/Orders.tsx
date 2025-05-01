@@ -1,11 +1,18 @@
-
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Package, Filter } from 'lucide-react';
+import { Package, Download } from 'lucide-react';
 import { toast } from "sonner";
+import { 
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogTrigger
+} from "@/components/ui/dialog";
 
 interface Order {
   id: string;
@@ -15,6 +22,14 @@ interface Order {
   status: 'pending' | 'collected' | 'ironed' | 'delivered';
   date: string;
   time: string;
+  options?: {
+    ironing: boolean;
+    stainRemoval: boolean;
+    urgent: boolean;
+    delivery: boolean;
+  };
+  formulaType?: string;
+  washSite?: string;
 }
 
 const mockOrders: Order[] = [
@@ -25,7 +40,15 @@ const mockOrders: Order[] = [
     weight: 3,
     status: 'pending',
     date: '05/05/2025',
-    time: '10:30'
+    time: '10:30',
+    options: {
+      ironing: true,
+      stainRemoval: false,
+      urgent: true,
+      delivery: false
+    },
+    formulaType: 'basic',
+    washSite: 'Thiès Nord'
   },
   {
     id: '10547',
@@ -34,7 +57,15 @@ const mockOrders: Order[] = [
     weight: 4.5,
     status: 'collected',
     date: '05/05/2025',
-    time: '09:15'
+    time: '09:15',
+    options: {
+      ironing: true,
+      stainRemoval: true,
+      urgent: false,
+      delivery: true
+    },
+    formulaType: 'subscription',
+    washSite: 'Thiès Sud'
   },
   {
     id: '10546',
@@ -108,13 +139,15 @@ const Orders: React.FC = () => {
     }
   };
 
+  const downloadInvoice = (orderId: string) => {
+    toast.success(`Téléchargement de la facture pour la commande #${orderId}`);
+    // Simuler un téléchargement
+  };
+
   return (
     <div className="space-y-6 pb-8">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold tracking-tight">Commandes</h1>
-        <Button variant="outline" size="icon">
-          <Filter className="h-4 w-4" />
-        </Button>
       </div>
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
@@ -134,6 +167,7 @@ const Orders: React.FC = () => {
               getStatusLabel={getStatusLabel}
               getNextStatus={getNextStatus}
               updateOrderStatus={updateOrderStatus}
+              downloadInvoice={downloadInvoice}
             />
           ))}
         </TabsContent>
@@ -147,6 +181,7 @@ const Orders: React.FC = () => {
               getStatusLabel={getStatusLabel}
               getNextStatus={getNextStatus}
               updateOrderStatus={updateOrderStatus}
+              downloadInvoice={downloadInvoice}
             />
           ))}
         </TabsContent>
@@ -160,6 +195,7 @@ const Orders: React.FC = () => {
               getStatusLabel={getStatusLabel}
               getNextStatus={getNextStatus}
               updateOrderStatus={updateOrderStatus}
+              downloadInvoice={downloadInvoice}
             />
           ))}
         </TabsContent>
@@ -173,6 +209,7 @@ const Orders: React.FC = () => {
               getStatusLabel={getStatusLabel}
               getNextStatus={getNextStatus}
               updateOrderStatus={updateOrderStatus}
+              downloadInvoice={downloadInvoice}
             />
           ))}
         </TabsContent>
@@ -198,6 +235,7 @@ interface OrderCardProps {
   getStatusLabel: (status: Order['status']) => string;
   getNextStatus: (status: Order['status']) => Order['status'] | null;
   updateOrderStatus: (orderId: string, newStatus: Order['status']) => void;
+  downloadInvoice: (orderId: string) => void;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({
@@ -205,41 +243,132 @@ const OrderCard: React.FC<OrderCardProps> = ({
   getStatusColor,
   getStatusLabel,
   getNextStatus,
-  updateOrderStatus
+  updateOrderStatus,
+  downloadInvoice
 }) => {
   const nextStatus = getNextStatus(order.status);
 
   return (
-    <Card className="card-shadow">
-      <CardContent className="p-4">
-        <div className="flex justify-between items-center">
-          <div>
-            <div className="font-medium">Commande #{order.id}</div>
-            <div className="text-sm text-gray-500">Client: {order.clientName}</div>
+    <Dialog>
+      <DialogTrigger asChild>
+        <Card className="card-shadow cursor-pointer">
+          <CardContent className="p-4">
+            <div className="flex justify-between items-center">
+              <div>
+                <div className="font-medium">Commande #{order.id}</div>
+                <div className="text-sm text-gray-500">Client: {order.clientName}</div>
+              </div>
+              <div className="text-right">
+                <div className="text-primary font-semibold">{order.price.toLocaleString()} FCFA</div>
+                <div className="text-xs text-gray-500">{order.date} {order.time}</div>
+              </div>
+            </div>
+            <div className="mt-3 flex justify-between items-center">
+              <span className={`text-xs rounded-full px-2 py-1 ${getStatusColor(order.status)}`}>
+                {getStatusLabel(order.status)}
+              </span>
+              <span className="text-xs text-gray-500">{order.weight} kg</span>
+            </div>
+          </CardContent>
+        </Card>
+      </DialogTrigger>
+
+      <DialogContent className="sm:max-w-md">
+        <DialogHeader>
+          <DialogTitle>Détails de la commande #{order.id}</DialogTitle>
+        </DialogHeader>
+        
+        <div className="space-y-4">
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Client</p>
+              <p className="text-sm text-gray-500">{order.clientName}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Date & Heure</p>
+              <p className="text-sm text-gray-500">{order.date} à {order.time}</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Poids</p>
+              <p className="text-sm text-gray-500">{order.weight} kg</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Prix</p>
+              <p className="text-sm text-primary font-semibold">{order.price.toLocaleString()} FCFA</p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Statut</p>
+              <p className={`text-xs rounded-full inline-block px-2 py-1 ${getStatusColor(order.status)}`}>
+                {getStatusLabel(order.status)}
+              </p>
+            </div>
+            <div className="space-y-1">
+              <p className="text-sm font-medium">Site de lavage</p>
+              <p className="text-sm text-gray-500">{order.washSite || "Non spécifié"}</p>
+            </div>
           </div>
-          <div className="text-right">
-            <div className="text-primary font-semibold">{order.price.toLocaleString()} FCFA</div>
-            <div className="text-xs text-gray-500">{order.date} {order.time}</div>
+          
+          {order.options && (
+            <div className="space-y-2">
+              <p className="text-sm font-medium">Options</p>
+              <div className="flex flex-wrap gap-2">
+                {order.options.ironing && (
+                  <span className="text-xs bg-gray-100 rounded-full px-2 py-1">Repassage</span>
+                )}
+                {order.options.stainRemoval && (
+                  <span className="text-xs bg-gray-100 rounded-full px-2 py-1">Détachage</span>
+                )}
+                {order.options.urgent && (
+                  <span className="text-xs bg-gray-100 rounded-full px-2 py-1">Urgence</span>
+                )}
+                {order.options.delivery && (
+                  <span className="text-xs bg-gray-100 rounded-full px-2 py-1">Livraison</span>
+                )}
+              </div>
+            </div>
+          )}
+          
+          <div className="space-y-2">
+            <p className="text-sm font-medium">Formule</p>
+            <p className="text-sm text-gray-500">
+              {order.formulaType === 'basic' && "Formule de base"}
+              {order.formulaType === 'subscription' && "Formule abonnement"}
+              {order.formulaType === 'weight' && "Formule au kilo"}
+              {!order.formulaType && "Non spécifiée"}
+            </p>
           </div>
         </div>
-        <div className="mt-3 flex justify-between items-center">
-          <span className={`text-xs rounded-full px-2 py-1 ${getStatusColor(order.status)}`}>
-            {getStatusLabel(order.status)}
-          </span>
-          <span className="text-xs text-gray-500">{order.weight} kg</span>
-        </div>
-        {nextStatus && (
+        
+        <DialogFooter className="flex flex-col sm:flex-row gap-2">
+          {nextStatus && (
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              onClick={() => {
+                updateOrderStatus(order.id, nextStatus);
+                // Close dialog
+                const closeButton = document.querySelector('[data-state="open"] button[data-dismiss]');
+                if (closeButton && closeButton instanceof HTMLElement) {
+                  closeButton.click();
+                }
+              }}
+            >
+              Passer à "{getStatusLabel(nextStatus)}"
+            </Button>
+          )}
+          
           <Button
             variant="outline"
             size="sm"
-            className="w-full mt-2"
-            onClick={() => updateOrderStatus(order.id, nextStatus)}
+            className="flex-1 gap-2"
+            onClick={() => downloadInvoice(order.id)}
           >
-            Passer à "{getStatusLabel(nextStatus)}"
+            <Download className="h-4 w-4" /> Télécharger facture
           </Button>
-        )}
-      </CardContent>
-    </Card>
+        </DialogFooter>
+      </DialogContent>
+    </Dialog>
   );
 };
 
