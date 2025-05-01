@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Download, ArrowRight, Check } from 'lucide-react';
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
 
 interface Order {
   id: string;
@@ -30,17 +31,49 @@ interface Order {
   };
   formulaType?: string;
   washSite?: string;
+  clientDetails?: {
+    firstName?: string;
+    lastName?: string;
+    address?: string;
+    phone?: string;
+    email?: string;
+  };
 }
 
 const OrderDetail: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
-  const order = location.state?.order as Order;
+  const [order, setOrder] = useState<Order | null>(null);
+  const [status, setStatus] = useState<Order['status']>('pending');
+  const [clientDetails, setClientDetails] = useState({
+    firstName: '',
+    lastName: '',
+    address: '',
+    phone: '',
+    email: ''
+  });
   
-  const [status, setStatus] = useState<Order['status']>(order?.status || 'pending');
+  useEffect(() => {
+    if (location.state?.order) {
+      const receivedOrder = location.state.order as Order;
+      setOrder(receivedOrder);
+      setStatus(receivedOrder.status);
+      
+      if (receivedOrder.clientDetails) {
+        setClientDetails({
+          firstName: receivedOrder.clientDetails.firstName || '',
+          lastName: receivedOrder.clientDetails.lastName || '',
+          address: receivedOrder.clientDetails.address || '',
+          phone: receivedOrder.clientDetails.phone || '',
+          email: receivedOrder.clientDetails.email || ''
+        });
+      }
+    } else {
+      navigate('/orders');
+    }
+  }, [location.state, navigate]);
   
   if (!order) {
-    navigate('/orders');
     return null;
   }
   
@@ -77,6 +110,22 @@ const OrderDetail: React.FC = () => {
     navigate('/orders');
   };
 
+  const handleClientDetailsChange = (field: string, value: string) => {
+    setClientDetails(prev => ({ ...prev, [field]: value }));
+    setOrder(prev => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        clientDetails: {
+          ...prev.clientDetails,
+          [field]: value
+        }
+      };
+    });
+  };
+
+  const isNoAccountOrder = order.clientName === 'Non inscrit' || order.clientName === 'Sans compte';
+
   return (
     <div className="space-y-6 pb-8">
       <div className="flex items-center gap-2">
@@ -96,12 +145,60 @@ const OrderDetail: React.FC = () => {
         <Card>
           <CardContent className="p-4">
             <h2 className="font-semibold mb-3">Informations client</h2>
-            <div className="space-y-2">
-              <div>
-                <p className="text-sm font-medium">Nom</p>
-                <p className="text-lg">{order.clientName}</p>
+            {isNoAccountOrder ? (
+              <div className="space-y-3">
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-sm font-medium">Nom</label>
+                    <Input 
+                      value={clientDetails.lastName}
+                      onChange={(e) => handleClientDetailsChange('lastName', e.target.value)}
+                      placeholder="Nom"
+                    />
+                  </div>
+                  <div>
+                    <label className="text-sm font-medium">Prénom</label>
+                    <Input 
+                      value={clientDetails.firstName}
+                      onChange={(e) => handleClientDetailsChange('firstName', e.target.value)}
+                      placeholder="Prénom"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Adresse</label>
+                  <Input 
+                    value={clientDetails.address}
+                    onChange={(e) => handleClientDetailsChange('address', e.target.value)}
+                    placeholder="Adresse"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Téléphone</label>
+                  <Input 
+                    value={clientDetails.phone}
+                    onChange={(e) => handleClientDetailsChange('phone', e.target.value)}
+                    placeholder="Téléphone"
+                  />
+                </div>
+                <div>
+                  <label className="text-sm font-medium">Email</label>
+                  <Input 
+                    value={clientDetails.email}
+                    onChange={(e) => handleClientDetailsChange('email', e.target.value)}
+                    placeholder="Email"
+                    type="email"
+                  />
+                </div>
               </div>
-            </div>
+            ) : (
+              <div className="space-y-2">
+                <div>
+                  <p className="text-sm font-medium">Nom</p>
+                  <p className="text-lg">{order.clientName}</p>
+                </div>
+              </div>
+            )}
           </CardContent>
         </Card>
 

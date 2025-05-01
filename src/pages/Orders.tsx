@@ -1,10 +1,12 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Package } from 'lucide-react';
+import { Package, Truck } from 'lucide-react';
+import { DeliveryDriverAssignmentDialog } from '@/components/dialogs/DeliveryDriverAssignmentDialog';
+import { PendingOrderNotification } from '@/components/notifications/PendingOrderNotification';
 
 interface Order {
   id: string;
@@ -22,6 +24,7 @@ interface Order {
   };
   formulaType?: string;
   washSite?: string;
+  driverId?: string;
 }
 
 const mockOrders: Order[] = [
@@ -37,7 +40,7 @@ const mockOrders: Order[] = [
       ironing: true,
       stainRemoval: false,
       urgent: true,
-      delivery: false
+      delivery: true
     },
     formulaType: 'basic',
     washSite: 'Thiès Nord'
@@ -66,7 +69,13 @@ const mockOrders: Order[] = [
     weight: 2,
     status: 'ironed',
     date: '04/05/2025',
-    time: '16:45'
+    time: '16:45',
+    options: {
+      ironing: true,
+      stainRemoval: false,
+      urgent: false,
+      delivery: true
+    }
   },
   {
     id: '10545',
@@ -75,7 +84,13 @@ const mockOrders: Order[] = [
     weight: 6,
     status: 'collected',
     date: '04/05/2025',
-    time: '14:20'
+    time: '14:20',
+    options: {
+      ironing: false,
+      stainRemoval: false,
+      urgent: false,
+      delivery: false
+    }
   },
   {
     id: '10544',
@@ -84,17 +99,26 @@ const mockOrders: Order[] = [
     weight: 3.5,
     status: 'delivered',
     date: '04/05/2025',
-    time: '11:05'
+    time: '11:05',
+    options: {
+      ironing: true,
+      stainRemoval: true,
+      urgent: false,
+      delivery: false
+    }
   }
 ];
 
 const Orders: React.FC = () => {
   const [activeTab, setActiveTab] = useState('all');
+  const [orders, setOrders] = useState<Order[]>(mockOrders);
+  const [driverDialogOpen, setDriverDialogOpen] = useState(false);
+  const [selectedOrderId, setSelectedOrderId] = useState<string | null>(null);
   const navigate = useNavigate();
 
   const filterOrders = (status: string) => {
-    if (status === 'all') return mockOrders;
-    return mockOrders.filter(order => order.status === status);
+    if (status === 'all') return orders;
+    return orders.filter(order => order.status === status);
   };
 
   const getStatusColor = (status: Order['status']) => {
@@ -121,6 +145,36 @@ const Orders: React.FC = () => {
     navigate('/order-details', { state: { order } });
   };
 
+  const openDriverAssignment = (orderId: string, event: React.MouseEvent) => {
+    event.stopPropagation();
+    setSelectedOrderId(orderId);
+    setDriverDialogOpen(true);
+  };
+
+  const assignDriver = (driverId: string) => {
+    if (selectedOrderId) {
+      setOrders(prev => prev.map(order => 
+        order.id === selectedOrderId ? { ...order, driverId } : order
+      ));
+      setSelectedOrderId(null);
+    }
+  };
+
+  const handleAcceptOrder = (orderId: string) => {
+    setOrders(prev => prev.map(order => 
+      order.id === orderId ? { ...order, status: 'collected' } : order
+    ));
+  };
+
+  const handleRejectOrder = (orderId: string) => {
+    setOrders(prev => prev.filter(order => order.id !== orderId));
+  };
+
+  // Get pending orders with delivery option
+  const pendingDeliveryOrders = orders.filter(
+    order => order.status === 'pending' && order.options?.delivery
+  );
+
   return (
     <div className="space-y-6 pb-8">
       <div className="flex justify-between items-center">
@@ -143,6 +197,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -155,6 +210,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -167,6 +223,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -179,6 +236,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -194,6 +252,21 @@ const Orders: React.FC = () => {
           Nouvelle commande
         </Button>
       </div>
+
+      {/* Driver Assignment Dialog */}
+      <DeliveryDriverAssignmentDialog 
+        open={driverDialogOpen} 
+        onOpenChange={setDriverDialogOpen}
+        orderId={selectedOrderId || ''}
+        onAssign={assignDriver}
+      />
+
+      {/* Pending Order Notification */}
+      <PendingOrderNotification 
+        pendingOrders={pendingDeliveryOrders}
+        onAccept={handleAcceptOrder}
+        onReject={handleRejectOrder}
+      />
     </div>
   );
 };
@@ -203,17 +276,19 @@ interface OrderCardProps {
   getStatusColor: (status: Order['status']) => string;
   getStatusLabel: (status: Order['status']) => string;
   onClick: () => void;
+  onAssignDriver?: (event: React.MouseEvent) => void;
 }
 
 const OrderCard: React.FC<OrderCardProps> = ({
   order,
   getStatusColor,
   getStatusLabel,
-  onClick
+  onClick,
+  onAssignDriver
 }) => {
   return (
-    <Card className="card-shadow cursor-pointer hover:bg-gray-50" onClick={onClick}>
-      <CardContent className="p-4">
+    <Card className="card-shadow cursor-pointer hover:bg-gray-50">
+      <CardContent className="p-4" onClick={onClick}>
         <div className="flex justify-between items-center">
           <div>
             <div className="font-medium">Commande #{order.id}</div>
@@ -230,6 +305,20 @@ const OrderCard: React.FC<OrderCardProps> = ({
           </span>
           <span className="text-xs text-gray-500">{order.weight} kg</span>
         </div>
+        
+        {order.options?.delivery && order.status === 'pending' && !order.driverId && (
+          <div className="mt-3 flex justify-between">
+            <Button
+              size="sm"
+              variant="outline"
+              className="w-full flex items-center justify-center gap-1"
+              onClick={(e) => onAssignDriver && onAssignDriver(e)}
+            >
+              <Truck className="h-4 w-4" />
+              Affecter un livreur
+            </Button>
+          </div>
+        )}
       </CardContent>
     </Card>
   );

@@ -2,7 +2,7 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { cn } from '@/lib/utils';
-import { Home, Package, List } from 'lucide-react';
+import { Home, ShoppingCart, List } from 'lucide-react';
 
 export const BottomNav: React.FC = () => {
   const location = useLocation();
@@ -22,8 +22,8 @@ export const BottomNav: React.FC = () => {
         />
         <NavItem 
           to="/search" 
-          icon={<Package className="h-5 w-5" />} 
-          label="Commande" 
+          icon={<ShoppingCart className="h-5 w-5" />} 
+          label="Nouvelle Commande" 
           isActive={isActive('/search') || isActive('/new-order')} 
         />
         <NavItem 
