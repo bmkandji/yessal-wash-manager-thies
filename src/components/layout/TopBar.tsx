@@ -7,7 +7,7 @@ export const TopBar: React.FC = () => {
   return <header className="sticky top-0 z-30 bg-white border-b border-gray-200">
       <div className="flex items-center justify-between p-4">
         <Link to="/dashboard" className="flex items-center">
-          <img alt="Yessal Logo" className="h-8 w-auto mr-2" src="https://yessal.sn/logo_yessal.png" />
+          <img alt="Yessal Logo" className="h-8 w-auto mr-2" src="/lovable-uploads/85907a18-244b-43c0-9140-f17f12e89acf.png" />
           <span className="font-bold text-xl text-primary">Yessal Manager</span>
         </Link>
         <div className="flex items-center gap-2">
