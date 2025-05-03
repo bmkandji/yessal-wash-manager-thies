@@ -11,10 +11,17 @@ import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
 
 interface Client {
   id: string;
-  name: string;
+  firstName: string;
+  lastName: string;
   phone: string;
   cardNumber: string;
+  address?: string;
+  geo?: { lat: number; lng: number };
+  isPremium?: boolean;
+  isStudent?: boolean;
+  monthlyTotal?: number;
 }
+
 
 interface GuestContact {
   openAccount?: boolean;   // ← nouveau
@@ -42,6 +49,9 @@ const Search: React.FC = () => {
   const [guestContact, setGuestContact] = useState<GuestContact>({});
   const [showGuestForm, setShowGuestForm] = useState(false);
   const navigate = useNavigate();
+  const [addressInput, setAddressInput] = useState('');
+  const [editAddress, setEditAddress]   = useState(false);
+
 
   // Effet pour la recherche dynamique
   useEffect(() => {
@@ -142,6 +152,56 @@ const Search: React.FC = () => {
           Rechercher un client ou scanner sa carte
         </p>
       </div>
+/* 🔻 placer juste sous le bloc infos-client */
+{selectedClient && (
+  <>
+    {/* si géoloc → carte */}
+    {selectedClient.geo ? (
+      <MapContainer
+        center={[selectedClient.geo.lat, selectedClient.geo.lng]}
+        zoom={14}
+        className="h-56 rounded-lg overflow-hidden"
+      >
+        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Marker position={[selectedClient.geo.lat, selectedClient.geo.lng]} />
+      </MapContainer>
+    ) : (
+      /* sinon adresse texte si présente */
+      selectedClient.address && !editAddress && (
+        <div className="p-3 bg-muted/50 rounded-lg">
+          {selectedClient.address}
+        </div>
+      )
+    )}
+
+    {/* case « Modifier l’adresse » */}  
+    {(selectedClient.address || !selectedClient.geo) && (
+      <div className="flex items-center gap-2 mt-2">
+        <input
+          id="editAddress"
+          type="checkbox"
+          checked={editAddress}
+          onChange={(e) => setEditAddress(e.target.checked)}
+          className="h-4 w-4 accent-primary"
+        />
+        <label htmlFor="editAddress" className="text-sm">
+          Modifier l’adresse
+        </label>
+      </div>
+    )}
+
+    {/* zone texte si adresse manquante OU édition demandée */}  
+    {(!selectedClient.address || editAddress) && (
+      <textarea
+        className="mt-2 w-full border rounded-md p-2"
+        placeholder="Entrer l’adresse précise…"
+        required
+        value={addressInput}
+        onChange={(e) => setAddressInput(e.target.value)}
+      />
+    )}
+  </>
+)}
 
       {showGuestForm ? (
         <div className="space-y-4">
