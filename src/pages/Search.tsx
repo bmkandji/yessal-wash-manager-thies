@@ -1,40 +1,23 @@
-/*  Search.tsx — version complète avec toutes les règles  */
 
-import React, { useState, useEffect, useMemo } from "react";
-import { useNavigate } from "react-router-dom";
-import {
-  Input,
-  Button,
-  Card,
-  CardContent,
-  Tabs,
-  TabsContent,
-  TabsList,
-  TabsTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui";
-import { Search as SearchIcon, ScanQrCode, User, X } from "lucide-react";
+import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Input } from "@/components/ui/input";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
 import { toast } from "sonner";
-import { startQrScanner, parseQrCodeData } from "@/utils/qrCodeScanner";
+import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
 
-/* ─────────────────── types ─────────────────── */
 interface Client {
   id: string;
   name: string;
   phone: string;
   cardNumber: string;
-  type?: "standard" | "premium" | "student" | "premium-student";
-  gps?: { lat: number; lng: number };
-  address?: string;
-  monthWeight?: number; // kg déjà consommés ce mois
 }
 
 interface GuestContact {
-  openAccount?: boolean;
+  openAccount?: boolean;   // ← nouveau
   phone?: string;
   email?: string;
   lastName?: string;
@@ -42,455 +25,322 @@ interface GuestContact {
   address?: string;
 }
 
-type Formula = "base" | "detailed";
-
-interface Options {
-  delivery: boolean;
-  drying: boolean;
-  ironing: boolean;
-  express: boolean;
-}
-
-/* ──────────────── mocks / constantes ──────────────── */
 const mockClients: Client[] = [
-  {
-    id: "1",
-    name: "Abdou Diop",
-    phone: "77 123 45 67",
-    cardNumber: "Y10012",
-    type: "premium",
-    monthWeight: 12,
-    gps: { lat: 14.69, lng: -17.45 },
-  },
-  {
-    id: "2",
-    name: "Fatou Ndiaye",
-    phone: "70 876 54 32",
-    cardNumber: "Y10025",
-    type: "student",
-  },
+  { id: '1', name: 'Abdou Diop', phone: '77 123 45 67', cardNumber: 'Y10012' },
+  { id: '2', name: 'Fatou Ndiaye', phone: '70 876 54 32', cardNumber: 'Y10025' },
+  { id: '3', name: 'Moustapha Seck', phone: '76 543 21 98', cardNumber: 'Y10037' },
+  { id: '4', name: 'Aminata Fall', phone: '78 765 43 21', cardNumber: 'Y10042' },
+  { id: '5', name: 'Ousmane Diallo', phone: '77 987 65 43', cardNumber: 'Y10056' },
 ];
 
-const A = 4000; // machine 20 kg
-const B = 2000; // machine 6 kg
-const DELIVERY_FEE = 1000;
-const DRYING_PER_KG = 150;
-const IRONING_PER_KG = 200;
-const EXPRESS_FEE = 1000;
-const PREMIUM_QUOTA = 40;
-
-/* ─────────────────── helpers ─────────────────── */
-function computeBasePrice(weight: number) {
-  const n = Math.floor(weight / 20);
-  const r = weight % 20;
-  const price =
-    B * (r / 6) > A
-      ? (n + 1) * A
-      : n * A + (Math.floor(r / 6) + (r % 6 <= 1 ? 1.5 : 0)) * B;
-  return price;
-}
-
-function applyFidelity(weight: number, price: number) {
-  // 6 kg offerts tous les 70 kg
-  const freeKg = Math.floor(weight / 70) * 6;
-  if (freeKg === 0) return price;
-  const remaining = Math.max(weight - freeKg, 0);
-  return computeBasePrice(remaining);
-}
-
-/* ─────────────────── composant ─────────────────── */
 const Search: React.FC = () => {
-  const navigate = useNavigate();
-
-  /* recherche / scan */
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Client[]>([]);
   const [isScanning, setIsScanning] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-
-  /* invités / formulaire */
+  const [showSearchResults, setShowSearchResults] = useState(true);
   const [guestContact, setGuestContact] = useState<GuestContact>({});
   const [showGuestForm, setShowGuestForm] = useState(false);
+  const navigate = useNavigate();
 
-  /* commande */
-  const [weight, setWeight] = useState<number>(6);
-  const [formula, setFormula] = useState<Formula>("base");
-  const [options, setOptions] = useState<Options>({
-    delivery: true,
-    drying: false,
-    ironing: false,
-    express: false,
-  });
-
-  /* ───────────── recherche dynamique ───────────── */
+  // Effet pour la recherche dynamique
   useEffect(() => {
-    if (!searchQuery.trim()) return setSearchResults([]);
-    const q = searchQuery.toLowerCase();
-    setSearchResults(
-      mockClients.filter(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
-          c.cardNumber.toLowerCase().includes(q),
-      ),
-    );
+    if (searchQuery.trim()) {
+      // Filtrer les clients en fonction de la recherche
+      const results = mockClients.filter(client => 
+        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        client.phone.replace(/\s/g, '').includes(searchQuery.replace(/\s/g, '')) ||
+        client.cardNumber.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setSearchResults(results);
+      setShowSearchResults(true);
+    } else {
+      setSearchResults([]);
+    }
   }, [searchQuery]);
 
-  /* ───────────── prix temps-réel ───────────── */
-  const price = useMemo(() => {
-    if (weight < 6) return 0;
-
-    const clientType = selectedClient?.type;
-    const isPremium = clientType?.includes("premium");
-    const isStudent = clientType?.includes("student");
-
-    let baseWeight = weight;
-    let premiumSurplus = 0;
-
-    if (isPremium) {
-      const total = (selectedClient?.monthWeight || 0) + weight;
-      if (total > PREMIUM_QUOTA) {
-        premiumSurplus = total - PREMIUM_QUOTA;
-        baseWeight = premiumSurplus;
-      } else {
-        baseWeight = 0; // couvert par abonnement
-      }
-    }
-
-    let total = 0;
-
-    if (baseWeight > 0) {
-      if (formula === "base") {
-        total = applyFidelity(baseWeight, computeBasePrice(baseWeight));
-      }
-      // formule détaillée : le prix est au kg, pas défini ici → adapter si besoin
-    }
-
-    if (options.delivery && baseWeight > 0) total += DELIVERY_FEE;
-    if (options.drying && baseWeight > 0)
-      total += DRYING_PER_KG * baseWeight;
-    if (options.ironing && baseWeight > 0)
-      total += IRONING_PER_KG * baseWeight;
-    if (options.express) total += EXPRESS_FEE;
-
-    if (isStudent && total > 0) total *= 0.9; // -10 %
-
-    return Math.round(total);
-  }, [weight, formula, options, selectedClient]);
-
-  /* ───────────── handlers ───────────── */
   const resetSearch = () => {
-    setSearchQuery("");
+    setSearchQuery('');
     setSearchResults([]);
     setSelectedClient(null);
+    setShowSearchResults(true);
     setShowGuestForm(false);
     setGuestContact({});
   };
 
-  const selectClient = (c: Client) => {
-    setSelectedClient(c);
-    setShowGuestForm(false);
+  const startScanning = async () => {
+    setIsScanning(true);
+    
+    try {
+      // Call the actual scanner utility
+      const qrData = await startQrScanner();
+      const parsedData = parseQrCodeData(qrData);
+      
+      if (parsedData && parsedData.clientId) {
+        const foundClient = mockClients.find(client => client.id === parsedData.clientId);
+        
+        if (foundClient) {
+          setSelectedClient(foundClient);
+          setSearchResults([foundClient]);
+          toast.success(`Client trouvé: ${foundClient.name}`);
+          
+          // Redirect directly to new order with this client
+          navigate('/new-order', { state: { client: foundClient } });
+        } else {
+          toast.error("Aucun client trouvé avec ce code");
+        }
+      } else {
+        toast.error("QR code invalide");
+      }
+    } catch (error) {
+      toast.error("Erreur lors du scan");
+    } finally {
+      setIsScanning(false);
+    }
   };
 
-  const submitOrder = () => {
-    /* minimal payload */
-    navigate("/new-order", {
-      state: {
-        client: selectedClient,
-        guestContact,
-        weight,
-        formula,
-        options,
-        price,
-        dateGMT: new Date().toISOString(),
-      },
+  const selectClient = (client: Client) => {
+    setSelectedClient(client);
+    navigate('/new-order', { state: { client } });
+  };
+
+  const showGuestContactForm = () => {
+    setShowGuestForm(true);
+  };
+
+  const handleGuestContactSubmit = () => {
+    // Store contact info and proceed to order creation
+    navigate('/new-order', { 
+      state: { 
+        clientType: 'non-registered',
+        guestContact 
+      } 
     });
   };
 
-  /* ───────────── UI ───────────── */
-  return (
-    <div className="mx-auto max-w-3xl p-6 space-y-8">
-      {/* 1. infos client */}
-      {selectedClient && (
-        <Card>
-          <CardContent className="p-4">
-            <p className="font-semibold">
-              {selectedClient.name} – {selectedClient.phone}
-            </p>
-          </CardContent>
-        </Card>
-      )}
+  const skipGuestContact = () => {
+    // Proceed without contact info
+    navigate('/new-order', { state: { clientType: 'non-registered' } });
+  };
 
-      {/* 2. adresse / géoloc */}
-      {selectedClient && (
-        <>
-          {selectedClient.gps ? (
-            <div className="h-40 bg-gray-200 flex items-center justify-center">
-              {/* Remplacer par un composant map réel */}
-              <span className="text-sm">Carte localisation</span>
-            </div>
-          ) : selectedClient.address ? (
-            <Card>
-              <CardContent className="p-4 text-sm">
-                {selectedClient.address}
-              </CardContent>
-            </Card>
-          ) : (
+  return (
+    <div className="space-y-6 pb-8">
+      <div>
+        <h1 className="text-2xl font-bold tracking-tight">Commande Client</h1>
+        <p className="text-muted-foreground">
+          Rechercher un client ou scanner sa carte
+        </p>
+      </div>
+
+      {showGuestForm ? (
+        <div className="space-y-4">
+          <h2 className="text-lg font-semibold">Coordonnées du client (facultatif)</h2>
+          <p className="text-sm text-gray-500">
+            Ces informations seront utilisées pour l'envoi de la facture. Le client peut choisir de ne pas les fournir.
+          </p>
+          <div>
+            <label htmlFor="guestLastName" className="text-sm font-medium">
+              Nom
+            </label>
             <Input
-              placeholder="Adresse complète"
-              value={selectedClient.address || ""}
+              id="guestLastName"
+              placeholder="Ex : Ndiaye"
+              value={guestContact.lastName || ''}
               onChange={(e) =>
-                setSelectedClient({ ...selectedClient, address: e.target.value })
+                setGuestContact({ ...guestContact, lastName: e.target.value })
               }
             />
-          )}
-
-          {/* case modifier adresse */}
+          </div>
+          
+          <div>
+            <label htmlFor="guestFirstName" className="text-sm font-medium">
+              Prénom
+            </label>
+            <Input
+              id="guestFirstName"
+              placeholder="Ex : Fatou"
+              value={guestContact.firstName || ''}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, firstName: e.target.value })
+              }
+            />
+          </div>
+          <div>
+            <label htmlFor="guestPhone" className="text-sm font-medium">
+              Numéro de téléphone
+            </label>
+            <Input 
+              id="guestPhone" 
+              type="tel" 
+              placeholder="Ex: 77 123 45 67" 
+              value={guestContact.phone || ''}
+              onChange={(e) => setGuestContact({...guestContact, phone: e.target.value})}
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="guestAddress" className="text-sm font-medium">
+              Adresse
+            </label>
+            <Input
+              id="guestAddress"
+              placeholder="Ex : 24 rue des Manguiers, Dakar"
+              value={guestContact.address || ''}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, address: e.target.value })
+              }
+            />
+          </div>
+          <div className="space-y-4">
+            
+            <div>
+              <label htmlFor="guestEmail" className="text-sm font-medium">
+                Email
+              </label>
+              <Input 
+                id="guestEmail" 
+                type="email" 
+                placeholder="Ex: client@example.com" 
+                value={guestContact.email || ''}
+                onChange={(e) => setGuestContact({...guestContact, email: e.target.value})}
+              />
+            </div>
+          </div>
           <div className="flex items-center gap-2">
             <input
+              id="openAccount"
               type="checkbox"
-              id="editAddr"
+              checked={guestContact.openAccount || false}
               onChange={(e) =>
-                !e.target.checked
-                  ? null
-                  : setSelectedClient({
-                      ...selectedClient,
-                      address: "",
-                      gps: undefined,
-                    })
+                setGuestContact({ ...guestContact, openAccount: e.target.checked })
               }
+              className="h-4 w-4 accent-primary"
             />
-            <label htmlFor="editAddr" className="text-sm">
-              Modifier l’adresse
+            <label htmlFor="openAccount" className="text-sm">
+              Souhaite ouvrir un compte
             </label>
           </div>
-        </>
-      )}
-
-      {/* 3. poids indicatif */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium">Poids indicatif (kg)</label>
-        <Input
-          type="number"
-          min={6}
-          value={weight}
-          onChange={(e) => setWeight(Math.max(6, Number(e.target.value)))}
-        />
-      </div>
-
-      {/* 4. formules */}
-      {(!selectedClient ||
-        !selectedClient.type?.includes("premium") ||
-        weight + (selectedClient.monthWeight || 0) > PREMIUM_QUOTA) && (
-        <Tabs
-          value={formula}
-          onValueChange={(v) => setFormula(v as Formula)}
-          className="space-y-4"
-        >
-          <TabsList className="grid grid-cols-2">
-            <TabsTrigger value="base">Formule de base</TabsTrigger>
-            <TabsTrigger value="detailed">Formule détaillée</TabsTrigger>
-          </TabsList>
-
-          {/* options base */}
-          <TabsContent value="base" className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={options.delivery}
-                onChange={(e) =>
-                  setOptions({ ...options, delivery: e.target.checked })
-                }
-              />
-              <span>Livraison (+1000 FCFA)</span>
-            </div>
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={options.drying}
-                disabled={!options.delivery}
-                onChange={(e) =>
-                  setOptions({ ...options, drying: e.target.checked })
-                }
-              />
-              <span>Séchage (+150 FCFA/kg)</span>
-            </div>
-            {options.drying && (
-              <div className="flex items-center gap-2">
-                <input
-                  type="checkbox"
-                  checked={options.ironing}
-                  onChange={(e) =>
-                    setOptions({ ...options, ironing: e.target.checked })
-                  }
-                />
-                <span>Repassage (+200 FCFA/kg)</span>
-              </div>
-            )}
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={options.express}
-                onChange={(e) =>
-                  setOptions({ ...options, express: e.target.checked })
-                }
-              />
-              <span>Express 6 h (+1000 FCFA)</span>
-            </div>
-          </TabsContent>
-
-          {/* options detailed */}
-          <TabsContent value="detailed" className="space-y-2">
-            <div className="flex items-center gap-2">
-              <input
-                type="checkbox"
-                checked={options.express}
-                onChange={(e) =>
-                  setOptions({ ...options, express: e.target.checked })
-                }
-              />
-              <span>Express 6 h (+1000 FCFA)</span>
-            </div>
-          </TabsContent>
-        </Tabs>
-      )}
-
-      {/* 5. réduction étudiant */}
-      {selectedClient?.type?.includes("student") && price > 0 && (
-        <p className="text-sm text-emerald-600">–10 % appliqué (étudiant)</p>
-      )}
-
-      {/* 6. moyen de paiement */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium">Moyen de paiement</label>
-        <Select defaultValue="cash">
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="cash">Espèces</SelectItem>
-            <SelectItem value="card">Carte</SelectItem>
-            <SelectItem value="mobile">Mobile Money</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 7. site de lavage */}
-      <div className="space-y-1">
-        <label className="text-sm font-medium">Site de lavage</label>
-        <Select defaultValue="central">
-          <SelectTrigger className="w-full">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="central">Central</SelectItem>
-            <SelectItem value="ouest">Ouest</SelectItem>
-            <SelectItem value="est">Est</SelectItem>
-          </SelectContent>
-        </Select>
-      </div>
-
-      {/* 8. résumé + enregistrer */}
-      <Card>
-        <CardContent className="p-4 flex justify-between">
-          <span className="font-medium">Total</span>
-          <span className="font-bold">{price.toLocaleString()} FCFA</span>
-        </CardContent>
-      </Card>
-
-      <Button
-        disabled={weight < 6}
-        className="w-full"
-        onClick={submitOrder}
-      >
-        Enregistrer la commande
-      </Button>
-
-      {/* ────────── bloc recherche / scan ────────── */}
-      {!selectedClient && !showGuestForm && (
-        <Tabs defaultValue="search" className="mt-10">
+          <div className="flex gap-2">
+            <Button 
+              className="flex-1"
+              variant="default" 
+              onClick={handleGuestContactSubmit}
+            >
+              Continuer
+            </Button>
+            <Button 
+              className="flex-1"
+              variant="outline" 
+              onClick={skipGuestContact}
+            >
+              Passer cette étape
+            </Button>
+          </div>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={resetSearch}
+          >
+            Annuler et revenir à la recherche
+          </Button>
+        </div>
+      ) : (
+        <Tabs defaultValue="search">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="search">Recherche</TabsTrigger>
             <TabsTrigger value="scan">Scanner</TabsTrigger>
           </TabsList>
-
+          
           <TabsContent value="search" className="space-y-4">
-            <div className="relative">
-              <Input
-                placeholder="Nom, téléphone ou n° carte"
+            <div className="flex gap-2 relative">
+              <Input 
+                placeholder="Nom, téléphone ou numéro de carte" 
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9"
+                className="pr-10"
               />
-              <SearchIcon className="h-4 w-4 absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
               {searchQuery && (
-                <Button
-                  size="icon"
-                  variant="ghost"
-                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
+                <Button 
+                  size="sm" 
+                  variant="ghost" 
+                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0" 
                   onClick={resetSearch}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
+              <Button type="button" onClick={() => setSearchQuery(searchQuery)}>
+                <SearchIcon className="h-4 w-4 mr-2" />
+                Rechercher
+              </Button>
             </div>
-            {searchResults.map((c) => (
-              <Card
-                key={c.id}
-                onClick={() => selectClient(c)}
-                className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition"
-              >
-                <CardContent className="p-4">
-                  <p className="font-medium">{c.name}</p>
-                  <p className="text-sm text-muted-foreground">{c.phone}</p>
-                </CardContent>
-              </Card>
-            ))}
+            
+            {showSearchResults && searchResults.length > 0 ? (
+              <div className="space-y-2">
+                {searchResults.map((client) => (
+                  <Card 
+                    key={client.id} 
+                    className="cursor-pointer hover:bg-gray-50" 
+                    onClick={() => selectClient(client)}
+                  >
+                    <CardContent className="p-4">
+                      <div className="flex justify-between items-center">
+                        <div>
+                          <div className="font-medium">{client.name}</div>
+                          <div className="text-sm text-gray-500">Tél: {client.phone}</div>
+                        </div>
+                        <div className="text-right">
+                          <div className="text-primary font-semibold">{client.cardNumber}</div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            ) : searchQuery ? (
+              <div className="text-center py-8">
+                <p className="text-gray-500">Aucun client trouvé</p>
+                <Button className="mt-4" onClick={resetSearch}>
+                  Nouvelle recherche
+                </Button>
+              </div>
+            ) : null}
           </TabsContent>
-
+          
           <TabsContent value="scan" className="space-y-4">
             <div className="bg-gray-100 rounded-lg aspect-square flex items-center justify-center">
               {isScanning ? (
-                <ScanQrCode className="h-12 w-12 text-primary animate-pulse" />
+                <div className="text-center">
+                  <div className="animate-pulse">
+                    <ScanQrCode className="h-12 w-12 text-primary mx-auto" />
+                  </div>
+                  <p className="mt-4">Scan en cours...</p>
+                </div>
               ) : (
-                <ScanQrCode className="h-12 w-12 text-gray-400" />
+                <div className="text-center">
+                  <ScanQrCode className="h-12 w-12 text-gray-400 mx-auto" />
+                  <p className="mt-4">Prêt à scanner</p>
+                  <Button className="mt-4" onClick={startScanning}>
+                    Démarrer le scan
+                  </Button>
+                </div>
               )}
             </div>
-            <Button onClick={async () => {
-              setIsScanning(true);
-              try {
-                const data = parseQrCodeData(await startQrScanner());
-                const client = mockClients.find((c) => c.id === data?.clientId);
-                if (client) selectClient(client);
-                else toast.error("Client introuvable");
-              } catch {
-                toast.error("Scan annulé");
-              } finally {
-                setIsScanning(false);
-              }
-            }}>
-              {isScanning ? "Scan en cours…" : "Démarrer le scan"}
-            </Button>
           </TabsContent>
         </Tabs>
       )}
 
-      {/* bouton invité */}
-      {!selectedClient && !showGuestForm && (
-        <Button
-          variant="outline"
-          className="w-full mt-4 flex gap-2"
-          onClick={() => setShowGuestForm(true)}
-        >
-          <User className="h-4 w-4" />
-          Commande sans compte
-        </Button>
-      )}
-
-      {/* formulaire invité (inchangé sauf +openAccount déjà présent) */}
-      {showGuestForm && (
-        <div className="space-y-4 mt-10">
-          {/* … même contenu que ta version précédente … */}
+      {!showGuestForm && (
+        <div className="border-t border-gray-200 pt-4">
+          <Button 
+            variant="outline" 
+            className="w-full flex items-center justify-center gap-2"
+            onClick={showGuestContactForm}
+          >
+            <User className="h-4 w-4" />
+            Commande sans compte client
+          </Button>
         </div>
       )}
     </div>
