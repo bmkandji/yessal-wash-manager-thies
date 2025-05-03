@@ -165,6 +165,18 @@ const Search: React.FC = () => {
               }
             />
           </div>
+          <div>
+            <label htmlFor="guestPhone" className="text-sm font-medium">
+              Numéro de téléphone
+            </label>
+            <Input 
+              id="guestPhone" 
+              type="tel" 
+              placeholder="Ex: 77 123 45 67" 
+              value={guestContact.phone || ''}
+              onChange={(e) => setGuestContact({...guestContact, phone: e.target.value})}
+            />
+          </div>
           
           <div>
             <label htmlFor="guestAddress" className="text-sm font-medium">
@@ -180,18 +192,6 @@ const Search: React.FC = () => {
             />
           </div>
           <div className="space-y-4">
-            <div>
-              <label htmlFor="guestPhone" className="text-sm font-medium">
-                Numéro de téléphone
-              </label>
-              <Input 
-                id="guestPhone" 
-                type="tel" 
-                placeholder="Ex: 77 123 45 67" 
-                value={guestContact.phone || ''}
-                onChange={(e) => setGuestContact({...guestContact, phone: e.target.value})}
-              />
-            </div>
             
             <div>
               <label htmlFor="guestEmail" className="text-sm font-medium">
