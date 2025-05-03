@@ -8,6 +8,11 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
 import { toast } from "sonner";
 import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
+import { Textarea } from "@/components/ui/textarea";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 interface Client {
   id: string;
@@ -25,13 +30,32 @@ interface Client {
 }
 
 interface GuestContact {
-  openAccount?: boolean;   // ← nouveau
+  openAccount?: boolean;   
   phone?: string;
   email?: string;
   lastName?: string;
   firstName?: string;
   address?: string;
 }
+
+interface OrderOptions {
+  delivery: boolean;
+  drying: boolean;
+  ironing: boolean;
+  express: boolean;
+}
+
+type Formula = 'base' | 'detailed';
+
+// Constants for price calculations
+const MACHINE_A_PRICE = 4000; // 20kg machine
+const MACHINE_B_PRICE = 2000; // 6kg machine
+const DELIVERY_FEE = 1000;
+const DRYING_FEE_PER_KG = 150;
+const IRONING_FEE_PER_KG = 200;
+const EXPRESS_FEE = 1000;
+const PREMIUM_QUOTA = 40; // kg per month
+const STUDENT_DISCOUNT = 0.9; // 10% discount
 
 const mockClients: Client[] = [
   { 
@@ -113,6 +137,34 @@ const mockClients: Client[] = [
   },
 ];
 
+// Helper function to calculate base price using the A=4000, B=2000 formula
+const calculateBasePrice = (weight: number): number => {
+  if (weight <= 0) return 0;
+  
+  const n = Math.floor(weight / 20); // Number of 20kg machines
+  const r = weight % 20; // Remaining weight
+  
+  if (MACHINE_B_PRICE * (r / 6) > MACHINE_A_PRICE) {
+    return (n + 1) * MACHINE_A_PRICE;
+  } else {
+    const fullSmallMachines = Math.floor(r / 6);
+    const partialMachine = r % 6 > 0 ? 1 : 0;
+    return (n * MACHINE_A_PRICE) + ((fullSmallMachines + partialMachine) * MACHINE_B_PRICE);
+  }
+};
+
+// Helper function to apply fidelity bonus
+const applyFidelityBonus = (weight: number, price: number, totalOrders: number): number => {
+  // 10th machine 6kg free (simplified implementation)
+  const freeKg = Math.floor(weight / 70) * 6; // 6kg free per 70kg
+  
+  if (freeKg === 0) return price;
+  
+  // Recalculate price with reduced weight
+  const effectiveWeight = Math.max(0, weight - freeKg);
+  return calculateBasePrice(effectiveWeight);
+};
+
 const Search: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [searchResults, setSearchResults] = useState<Client[]>([]);
@@ -121,12 +173,88 @@ const Search: React.FC = () => {
   const [showSearchResults, setShowSearchResults] = useState(true);
   const [guestContact, setGuestContact] = useState<GuestContact>({});
   const [showGuestForm, setShowGuestForm] = useState(false);
+  
+  // New states for order details
+  const [weight, setWeight] = useState<number>(6);
+  const [formula, setFormula] = useState<Formula>('base');
+  const [options, setOptions] = useState<OrderOptions>({
+    delivery: true,
+    drying: false,
+    ironing: false,
+    express: false
+  });
+  const [modifyAddress, setModifyAddress] = useState(false);
+  const [newAddress, setNewAddress] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('');
+  const [washSite, setWashSite] = useState('');
+  
   const navigate = useNavigate();
 
-  // Effet pour la recherche dynamique
+  // Calculate if client is premium with excess weight
+  const isPremiumWithExcessWeight = (): boolean => {
+    if (!selectedClient?.premium) return false;
+    const totalUsage = (selectedClient.monthlyUsage || 0) + weight;
+    return totalUsage > PREMIUM_QUOTA;
+  };
+  
+  // Get excess weight for premium clients
+  const getExcessWeight = (): number => {
+    if (!selectedClient?.premium) return weight;
+    const totalUsage = (selectedClient.monthlyUsage || 0) + weight;
+    return totalUsage > PREMIUM_QUOTA ? totalUsage - PREMIUM_QUOTA : 0;
+  };
+  
+  // Dynamically calculate price based on all factors
+  const calculatePrice = (): number => {
+    // If weight is below minimum, return 0
+    if (weight < 6) return 0;
+    
+    const isPremium = selectedClient?.premium || false;
+    const isStudent = selectedClient?.student || false;
+    let effectiveWeight = isPremium ? getExcessWeight() : weight;
+    
+    // If premium client with no excess weight and no express option
+    if (isPremium && effectiveWeight === 0 && !options.express) {
+      return 0;
+    }
+    
+    let total = 0;
+    
+    // Calculate base price according to formula
+    if (effectiveWeight > 0) {
+      if (formula === 'base') {
+        // Apply base pricing algorithm
+        total = calculateBasePrice(effectiveWeight);
+        
+        // Apply fidelity bonus (simplified - would use actual order history in real app)
+        total = applyFidelityBonus(effectiveWeight, total, 0);
+      } else {
+        // Detailed formula pricing (simplified for now)
+        total = effectiveWeight * 350; // Example: 350 FCFA per kg
+      }
+    }
+    
+    // Add option costs
+    if (options.delivery && effectiveWeight > 0) total += DELIVERY_FEE;
+    if (options.drying && effectiveWeight > 0) total += DRYING_FEE_PER_KG * effectiveWeight;
+    if (options.ironing && effectiveWeight > 0) total += IRONING_FEE_PER_KG * effectiveWeight;
+    if (options.express) total += EXPRESS_FEE; // Express applies even for premium clients
+    
+    // Apply student discount
+    if (isStudent && total > 0) {
+      total *= STUDENT_DISCOUNT;
+    }
+    
+    return Math.round(total);
+  };
+  
+  // Calculated price using all factors
+  const price = calculatePrice();
+  
+  // Effect for dynamic search
   useEffect(() => {
     if (searchQuery.trim()) {
-      // Filtrer les clients en fonction de la recherche
+      // Filter clients based on search
       const results = mockClients.filter(client => 
         client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         client.phone.replace(/\s/g, '').includes(searchQuery.replace(/\s/g, '')) ||
@@ -146,6 +274,22 @@ const Search: React.FC = () => {
     setShowSearchResults(true);
     setShowGuestForm(false);
     setGuestContact({});
+    resetOrderForm();
+  };
+  
+  const resetOrderForm = () => {
+    setWeight(6);
+    setFormula('base');
+    setOptions({
+      delivery: true,
+      drying: false,
+      ironing: false,
+      express: false
+    });
+    setModifyAddress(false);
+    setNewAddress('');
+    setPaymentMethod('');
+    setWashSite('');
   };
 
   const startScanning = async () => {
@@ -163,9 +307,6 @@ const Search: React.FC = () => {
           setSelectedClient(foundClient);
           setSearchResults([foundClient]);
           toast.success(`Client trouvé: ${foundClient.name}`);
-          
-          // Redirect directly to new order with this client
-          navigate('/new-order', { state: { client: foundClient } });
         } else {
           toast.error("Aucun client trouvé avec ce code");
         }
@@ -181,7 +322,57 @@ const Search: React.FC = () => {
 
   const selectClient = (client: Client) => {
     setSelectedClient(client);
-    navigate('/new-order', { state: { client } });
+    setNewAddress(client.address || '');
+  };
+
+  const handleModifyAddressChange = () => {
+    setModifyAddress(!modifyAddress);
+    if (!modifyAddress) {
+      setNewAddress('');
+    } else {
+      setNewAddress(selectedClient?.address || '');
+    }
+  };
+
+  const handleFormulaChange = (value: Formula) => {
+    setFormula(value);
+    
+    // Reset incompatible options when changing formula
+    if (value === 'detailed') {
+      setOptions({
+        ...options,
+        drying: false,
+        ironing: false
+      });
+    }
+  };
+  
+  const handleOptionChange = (option: keyof OrderOptions, checked: boolean) => {
+    let updatedOptions = { ...options };
+    
+    if (option === 'delivery') {
+      updatedOptions.delivery = checked;
+      // If delivery is unchecked, also uncheck drying and ironing
+      if (!checked) {
+        updatedOptions.drying = false;
+        updatedOptions.ironing = false;
+      }
+    } 
+    else if (option === 'drying') {
+      updatedOptions.drying = checked;
+      // If drying is unchecked, also uncheck ironing
+      if (!checked) {
+        updatedOptions.ironing = false;
+      }
+    }
+    else if (option === 'ironing') {
+      updatedOptions.ironing = checked;
+    }
+    else {
+      updatedOptions[option] = checked;
+    }
+    
+    setOptions(updatedOptions);
   };
 
   const showGuestContactForm = () => {
@@ -189,18 +380,56 @@ const Search: React.FC = () => {
   };
 
   const handleGuestContactSubmit = () => {
-    // Store contact info and proceed to order creation
-    navigate('/new-order', { 
-      state: { 
-        clientType: 'non-registered',
-        guestContact 
-      } 
-    });
+    // Store contact info and proceed with order
+    submitOrder();
   };
 
   const skipGuestContact = () => {
     // Proceed without contact info
-    navigate('/new-order', { state: { clientType: 'non-registered' } });
+    submitOrder();
+  };
+  
+  const submitOrder = () => {
+    // Validate form
+    if (weight < 6) {
+      toast.error("Le poids minimum est de 6 kg");
+      return;
+    }
+    
+    if (!paymentMethod) {
+      toast.error("Veuillez sélectionner un mode de paiement");
+      return;
+    }
+    
+    if (!washSite) {
+      toast.error("Veuillez sélectionner un site de lavage");
+      return;
+    }
+    
+    const finalAddress = modifyAddress || !selectedClient?.address ? newAddress : selectedClient?.address;
+    
+    if (!finalAddress && options.delivery) {
+      toast.error("Veuillez saisir une adresse de livraison");
+      return;
+    }
+    
+    // Create order payload
+    const orderData = {
+      client: selectedClient,
+      guestContact: selectedClient ? undefined : guestContact,
+      weight,
+      formula,
+      options,
+      price,
+      address: finalAddress,
+      coordinates: modifyAddress ? undefined : selectedClient?.coordinates,
+      paymentMethod,
+      washSite,
+      date: new Date().toISOString()
+    };
+    
+    // Navigate to order confirmation with order data
+    navigate('/new-order', { state: orderData });
   };
 
   return (
@@ -325,7 +554,328 @@ const Search: React.FC = () => {
             Annuler et revenir à la recherche
           </Button>
         </div>
+      ) : selectedClient ? (
+        /* Client Selected - Show Order Form */
+        <div className="space-y-6">
+          {/* 1. Client Information Card */}
+          <Card className="overflow-hidden border-l-4 border-l-primary">
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-2">Client</h2>
+              <p className="text-sm text-gray-500">
+                <strong>{selectedClient.name}</strong>
+              </p>
+              <p className="text-sm text-gray-500">Tél: {selectedClient.phone}</p>
+              {selectedClient.cardNumber && <p className="text-sm text-gray-500">Carte: {selectedClient.cardNumber}</p>}
+              <div className="mt-1 flex gap-1 flex-wrap">
+                {selectedClient.premium && (
+                  <div className="inline-block bg-primary/20 text-primary text-xs px-2 py-0.5 rounded-full">
+                    Client Premium
+                  </div>
+                )}
+                {selectedClient.student && (
+                  <div className="inline-block bg-blue-100 text-blue-700 text-xs px-2 py-0.5 rounded-full">
+                    Étudiant
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+          
+          {/* 2. Address Section */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-3">Adresse de livraison</h2>
+              
+              {selectedClient.coordinates ? (
+                <div className="bg-gray-100 rounded-lg aspect-video mb-3 flex items-center justify-center">
+                  <div className="text-center text-gray-500">
+                    <p>Carte de localisation</p>
+                    <p className="text-xs">Coordonnées: {selectedClient.coordinates.lat}, {selectedClient.coordinates.lng}</p>
+                  </div>
+                </div>
+              ) : selectedClient.address ? (
+                <div className="border rounded-md p-3 mb-3 bg-gray-50">
+                  <p className="text-sm">{selectedClient.address}</p>
+                </div>
+              ) : (
+                <div className="mb-3">
+                  <p className="text-sm text-amber-600 mb-2">Aucune adresse disponible pour ce client.</p>
+                </div>
+              )}
+              
+              <div className="flex items-center space-x-2 mb-3">
+                <Checkbox 
+                  id="modify-address" 
+                  checked={modifyAddress} 
+                  onCheckedChange={handleModifyAddressChange} 
+                />
+                <Label htmlFor="modify-address">
+                  {selectedClient.address ? 'Modifier l\'adresse' : 'Ajouter une adresse'}
+                </Label>
+              </div>
+              
+              {(modifyAddress || !selectedClient.address) && (
+                <Textarea 
+                  placeholder="Adresse complète du client"
+                  value={newAddress}
+                  onChange={(e) => setNewAddress(e.target.value)}
+                  className="min-h-[80px]"
+                />
+              )}
+            </CardContent>
+          </Card>
+          
+          {/* 3. Weight Input */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Poids indicatif (kg)</h2>
+              <div className="flex items-center space-x-2">
+                <Input 
+                  type="number" 
+                  min="6" 
+                  step="0.1" 
+                  value={weight} 
+                  onChange={(e) => setWeight(parseFloat(e.target.value) || 6)} 
+                  className="text-lg font-medium" 
+                />
+                <span className="text-lg">kg</span>
+              </div>
+              {weight < 6 && (
+                <p className="text-destructive text-sm mt-1">Le poids minimum est de 6 kg</p>
+              )}
+              
+              {selectedClient.premium && (
+                <div className="mt-3 border-t pt-2 text-sm">
+                  <div className="flex justify-between">
+                    <span>Utilisation mensuelle:</span>
+                    <span className="font-medium">{selectedClient.monthlyUsage || 0} kg / {PREMIUM_QUOTA} kg</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Restant:</span>
+                    <span className="font-medium">{Math.max(0, PREMIUM_QUOTA - (selectedClient.monthlyUsage || 0))} kg</span>
+                  </div>
+                  {isPremiumWithExcessWeight() && (
+                    <div className="mt-2 text-amber-600">
+                      <span>Excédent à facturer: {getExcessWeight()} kg</span>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          {/* 4. Formula Selection - Hide if premium with no excess */}
+          {(!selectedClient.premium || isPremiumWithExcessWeight()) ? (
+            <Card>
+              <CardContent className="p-4">
+                <h2 className="font-semibold mb-4">Formule</h2>
+                <RadioGroup 
+                  value={formula} 
+                  onValueChange={value => handleFormulaChange(value as Formula)} 
+                  className="space-y-2"
+                >
+                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+                    <RadioGroupItem value="base" id="formula-base" />
+                    <Label htmlFor="formula-base" className="flex-grow cursor-pointer">
+                      <div>
+                        <span className="font-medium">Formule de base</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Lavage standard en machine (plusieurs vêtements ensemble)
+                        </p>
+                      </div>
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50 cursor-pointer">
+                    <RadioGroupItem value="detailed" id="formula-detailed" />
+                    <Label htmlFor="formula-detailed" className="flex-grow cursor-pointer">
+                      <div>
+                        <span className="font-medium">Formule détaillée</span>
+                        <p className="text-xs text-gray-500 mt-0.5">
+                          Traitement spécifique pour chaque type de vêtement
+                        </p>
+                      </div>
+                    </Label>
+                  </div>
+                </RadioGroup>
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardContent className="p-4">
+                <h2 className="font-semibold mb-4">Formule</h2>
+                <div className="bg-primary/10 rounded-lg p-3 text-sm">
+                  <p>Client premium - volume couvert par l'abonnement</p>
+                  <p className="text-xs mt-1 text-gray-600">
+                    Abonnement de {PREMIUM_QUOTA} kg/mois (hors service express)
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* 5. Options Section */}
+          <Card>
+            <CardContent className="p-4">
+              <h2 className="font-semibold mb-4">Options</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {formula === 'base' && (
+                  <>
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <Checkbox 
+                        id="option-delivery" 
+                        checked={options.delivery} 
+                        onCheckedChange={(checked) => handleOptionChange('delivery', checked === true)} 
+                      />
+                      <div className="flex-grow">
+                        <Label htmlFor="option-delivery" className="cursor-pointer">Livraison</Label>
+                        <p className="text-xs text-gray-500">+{DELIVERY_FEE} FCFA</p>
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <Checkbox 
+                        id="option-drying" 
+                        checked={options.drying} 
+                        disabled={!options.delivery}
+                        onCheckedChange={(checked) => handleOptionChange('drying', checked === true)} 
+                      />
+                      <div className="flex-grow">
+                        <Label htmlFor="option-drying" className="cursor-pointer">Séchage</Label>
+                        <p className="text-xs text-gray-500">+{DRYING_FEE_PER_KG} FCFA/kg</p>
+                        {!options.delivery && (
+                          <p className="text-xs text-amber-600">Nécessite l'option Livraison</p>
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                      <Checkbox 
+                        id="option-ironing" 
+                        checked={options.ironing} 
+                        disabled={!options.drying}
+                        onCheckedChange={(checked) => handleOptionChange('ironing', checked === true)} 
+                      />
+                      <div className="flex-grow">
+                        <Label htmlFor="option-ironing" className="cursor-pointer">Repassage</Label>
+                        <p className="text-xs text-gray-500">+{IRONING_FEE_PER_KG} FCFA/kg</p>
+                        {!options.drying && (
+                          <p className="text-xs text-amber-600">Nécessite l'option Séchage</p>
+                        )}
+                      </div>
+                    </div>
+                  </>
+                )}
+                
+                <div className="flex items-center space-x-2 border rounded-md p-3 hover:bg-gray-50">
+                  <Checkbox 
+                    id="option-express" 
+                    checked={options.express} 
+                    onCheckedChange={(checked) => handleOptionChange('express', checked === true)} 
+                  />
+                  <div className="flex-grow">
+                    <Label htmlFor="option-express" className="cursor-pointer">Express (6h)</Label>
+                    <p className="text-xs text-gray-500">+{EXPRESS_FEE} FCFA</p>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* 6. Payment Method & Wash Site Selection */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardContent className="p-4">
+                <h2 className="font-semibold mb-4">Mode de paiement</h2>
+                <Select value={paymentMethod} onValueChange={setPaymentMethod}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="cash">Espèces</SelectItem>
+                    <SelectItem value="orange_money">Orange Money</SelectItem>
+                    <SelectItem value="wave">Wave</SelectItem>
+                    <SelectItem value="free_money">Free Money</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+
+            <Card>
+              <CardContent className="p-4">
+                <h2 className="font-semibold mb-4">Site de lavage</h2>
+                <Select value={washSite} onValueChange={setWashSite}>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Sélectionner" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="thies_nord">Thiès Nord</SelectItem>
+                    <SelectItem value="thies_sud">Thiès Sud</SelectItem>
+                    <SelectItem value="thies_est">Thiès Est</SelectItem>
+                  </SelectContent>
+                </Select>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* 7. Order Summary */}
+          <Card className="bg-primary/5">
+            <CardContent className="p-4">
+              <h2 className="font-semibold text-lg mb-3">Résumé</h2>
+              <div className="space-y-2">
+                <div className="flex justify-between border-b pb-2">
+                  <span>Poids total</span>
+                  <span className="font-medium">{weight} kg</span>
+                </div>
+                
+                {selectedClient.premium && (
+                  <div className="flex justify-between text-sm">
+                    <span>Couvert par abonnement</span>
+                    <span className="text-primary">{Math.min(weight, PREMIUM_QUOTA - (selectedClient.monthlyUsage || 0))} kg</span>
+                  </div>
+                )}
+                
+                {selectedClient.student && price > 0 && (
+                  <div className="flex justify-between text-sm">
+                    <span>Réduction étudiant</span>
+                    <span className="text-green-600">-10%</span>
+                  </div>
+                )}
+                
+                <div className="flex justify-between pt-1">
+                  <span className="text-lg">Prix total</span>
+                  <span className="font-bold text-xl text-primary">
+                    {price === 0 ? 'Inclus dans l\'abonnement' : `${price.toLocaleString()} FCFA`}
+                  </span>
+                </div>
+                
+                <div className="flex justify-between text-xs text-gray-500 mt-2">
+                  <span>Date de commande</span>
+                  <span>{new Date().toLocaleDateString()}</span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          {/* Submit Button */}
+          <Button 
+            type="button" 
+            className="w-full" 
+            disabled={weight < 6}
+            onClick={submitOrder}
+          >
+            Enregistrer la commande
+          </Button>
+          
+          <Button 
+            variant="ghost" 
+            className="w-full"
+            onClick={resetSearch}
+          >
+            Annuler et revenir à la recherche
+          </Button>
+        </div>
       ) : (
+        /* No Client Selected - Show Search/Scan Tabs */
         <Tabs defaultValue="search">
           <TabsList className="grid grid-cols-2">
             <TabsTrigger value="search">Recherche</TabsTrigger>
@@ -411,7 +961,7 @@ const Search: React.FC = () => {
         </Tabs>
       )}
 
-      {!showGuestForm && (
+      {!selectedClient && !showGuestForm && (
         <div className="border-t border-gray-200 pt-4">
           <Button 
             variant="outline" 
