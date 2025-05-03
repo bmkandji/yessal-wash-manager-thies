@@ -147,8 +147,12 @@ const calculateBasePrice = (weight: number): number => {
   if (MACHINE_B_PRICE * (r / 6) > MACHINE_A_PRICE) {
     return (n + 1) * MACHINE_A_PRICE;
   } else {
+    // Modified algorithm for B machines:
+    // If remainder is ≤ 1.5 kg, count 1 machine 6 kg, else 2 machines
     const fullSmallMachines = Math.floor(r / 6);
-    const partialMachine = r % 6 > 0 ? 1 : 0;
+    const partialRemainder = r % 6;
+    const partialMachine = partialRemainder > 0 ? (partialRemainder <= 1.5 ? 1 : 2) : 0;
+    
     return (n * MACHINE_A_PRICE) + ((fullSmallMachines + partialMachine) * MACHINE_B_PRICE);
   }
 };
@@ -204,6 +208,13 @@ const Search: React.FC = () => {
     return totalUsage > PREMIUM_QUOTA ? totalUsage - PREMIUM_QUOTA : 0;
   };
   
+  // Calculate fidelity points
+  const calculateFidelityPoints = (): number => {
+    // Simplified implementation - in real app would use actual order history
+    const totalLavagesAvant = 0; // Would come from client history
+    return (totalLavagesAvant + Math.ceil(weight/6)) % 10;
+  };
+  
   // Dynamically calculate price based on all factors
   const calculatePrice = (): number => {
     // If weight is below minimum, return 0
@@ -234,10 +245,10 @@ const Search: React.FC = () => {
       }
     }
     
-    // Add option costs
+    // Add option costs - Updated according to requirements
     if (options.delivery && effectiveWeight > 0) total += DELIVERY_FEE;
-    if (options.drying && effectiveWeight > 0) total += DRYING_FEE_PER_KG * effectiveWeight;
-    if (options.ironing && effectiveWeight > 0) total += IRONING_FEE_PER_KG * effectiveWeight;
+    if (options.delivery && options.drying && effectiveWeight > 0) total += DRYING_FEE_PER_KG * effectiveWeight;
+    if (options.delivery && options.drying && options.ironing && effectiveWeight > 0) total += IRONING_FEE_PER_KG * effectiveWeight;
     if (options.express) total += EXPRESS_FEE; // Express applies even for premium clients
     
     // Apply student discount
@@ -250,6 +261,7 @@ const Search: React.FC = () => {
   
   // Calculated price using all factors
   const price = calculatePrice();
+  const fidelityPoints = calculateFidelityPoints();
   
   // Effect for dynamic search
   useEffect(() => {
@@ -264,6 +276,7 @@ const Search: React.FC = () => {
       setShowSearchResults(true);
     } else {
       setSearchResults([]);
+      setShowSearchResults(false); // Hide results when query is empty
     }
   }, [searchQuery]);
 
@@ -328,8 +341,10 @@ const Search: React.FC = () => {
   const handleModifyAddressChange = () => {
     setModifyAddress(!modifyAddress);
     if (!modifyAddress) {
+      // When checking the box, clear the address
       setNewAddress('');
     } else {
+      // When unchecking, restore the original address
       setNewAddress(selectedClient?.address || '');
     }
   };
@@ -387,6 +402,16 @@ const Search: React.FC = () => {
   const skipGuestContact = () => {
     // Proceed without contact info
     submitOrder();
+  };
+  
+  const handleWeightChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Allow empty input, store 0 if not numeric
+    const value = e.target.value;
+    if (value === '') {
+      setWeight(0);
+    } else {
+      setWeight(parseFloat(value) || 0);
+    }
   };
   
   const submitOrder = () => {
@@ -634,8 +659,8 @@ const Search: React.FC = () => {
                   type="number" 
                   min="6" 
                   step="0.1" 
-                  value={weight} 
-                  onChange={(e) => setWeight(parseFloat(e.target.value) || 6)} 
+                  value={weight === 0 ? '' : weight} 
+                  onChange={handleWeightChange}
                   className="text-lg font-medium" 
                 />
                 <span className="text-lg">kg</span>
@@ -851,6 +876,12 @@ const Search: React.FC = () => {
                 <div className="flex justify-between text-xs text-gray-500 mt-2">
                   <span>Date de commande</span>
                   <span>{new Date().toLocaleDateString()}</span>
+                </div>
+                
+                {/* Added fidelity points display */}
+                <div className="flex justify-between text-xs text-gray-500">
+                  <span>Points fidélité</span>
+                  <span>{fidelityPoints} / 10</span>
                 </div>
               </div>
             </CardContent>
