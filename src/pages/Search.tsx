@@ -17,8 +17,12 @@ interface Client {
 }
 
 interface GuestContact {
+  openAccount?: boolean;   // ← nouveau
   phone?: string;
   email?: string;
+  lastName?: string;
+  firstName?: string;
+  address?: string;
 }
 
 const mockClients: Client[] = [
@@ -202,7 +206,20 @@ const Search: React.FC = () => {
               />
             </div>
           </div>
-          
+          <div className="flex items-center gap-2">
+            <input
+              id="openAccount"
+              type="checkbox"
+              checked={guestContact.openAccount || false}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, openAccount: e.target.checked })
+              }
+              className="h-4 w-4 accent-primary"
+            />
+            <label htmlFor="openAccount" className="text-sm">
+              Souhaite ouvrir un compte
+            </label>
+          </div>
           <div className="flex gap-2">
             <Button 
               className="flex-1"
