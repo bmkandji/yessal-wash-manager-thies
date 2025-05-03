@@ -1,13 +1,11 @@
-
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from '@/components/ui/button';
-import { Package, Truck, Zap, Drying, MagicWand } from 'lucide-react';
+import { Package, Truck } from 'lucide-react';
 import { DeliveryDriverAssignmentDialog } from '@/components/dialogs/DeliveryDriverAssignmentDialog';
 import { PendingOrderNotification } from '@/components/notifications/PendingOrderNotification';
-import { toast } from "sonner";
 
 interface Order {
   id: string;
@@ -22,15 +20,12 @@ interface Order {
     stainRemoval: boolean;
     urgent: boolean;
     delivery: boolean;
-    drying?: boolean;
-    express?: boolean;
   };
   formulaType?: string;
   washSite?: string;
   driverId?: string;
   driverName?: string;
   accepted?: boolean;
-  driverConfirmed?: boolean;
   clientDetails?: {
     firstName?: string;
     lastName?: string;
@@ -45,7 +40,7 @@ const mockOrders: Order[] = [
     id: '10548',
     clientName: 'Abdou Diop',
     price: 3500,
-    weight: 6.5, // Updated to be ≥ 6 kg
+    weight: 3,
     status: 'pending',
     date: '05/05/2025',
     time: '10:30',
@@ -53,9 +48,7 @@ const mockOrders: Order[] = [
       ironing: true,
       stainRemoval: false,
       urgent: true,
-      delivery: true,
-      drying: true,
-      express: true
+      delivery: true
     },
     formulaType: 'basic',
     washSite: 'Thiès Nord'
@@ -64,7 +57,7 @@ const mockOrders: Order[] = [
     id: '10547',
     clientName: 'Fatou Ndiaye',
     price: 5000,
-    weight: 6, // Updated to be ≥ 6 kg
+    weight: 4.5,
     status: 'collected',
     date: '05/05/2025',
     time: '09:15',
@@ -72,8 +65,7 @@ const mockOrders: Order[] = [
       ironing: true,
       stainRemoval: true,
       urgent: false,
-      delivery: true,
-      drying: true
+      delivery: true
     },
     formulaType: 'subscription',
     washSite: 'Thiès Sud'
@@ -82,7 +74,7 @@ const mockOrders: Order[] = [
     id: '10546',
     clientName: 'Moustapha Seck',
     price: 2800,
-    weight: 6, // Updated to be ≥ 6 kg
+    weight: 2,
     status: 'ironed',
     date: '04/05/2025',
     time: '16:45',
@@ -90,15 +82,14 @@ const mockOrders: Order[] = [
       ironing: true,
       stainRemoval: false,
       urgent: false,
-      delivery: true,
-      drying: true
+      delivery: true
     }
   },
   {
     id: '10545',
     clientName: 'Aminata Fall',
     price: 7200,
-    weight: 6, // Updated to be ≥ 6 kg
+    weight: 6,
     status: 'collected',
     date: '04/05/2025',
     time: '14:20',
@@ -113,7 +104,7 @@ const mockOrders: Order[] = [
     id: '10544',
     clientName: 'Ousmane Diallo',
     price: 4500,
-    weight: 6.5, // Updated to be ≥ 6 kg
+    weight: 3.5,
     status: 'delivered',
     date: '04/05/2025',
     time: '11:05',
@@ -140,7 +131,7 @@ const Orders: React.FC = () => {
 
   const getStatusColor = (status: Order['status']) => {
     switch(status) {
-      case 'pending': return 'bg-orange-100 text-orange-800'; // Changed to orange
+      case 'pending': return 'bg-blue-100 text-blue-800';
       case 'collected': return 'bg-yellow-100 text-yellow-800';
       case 'ironed': return 'bg-purple-100 text-purple-800';
       case 'delivered': return 'bg-green-100 text-green-800';
@@ -159,11 +150,6 @@ const Orders: React.FC = () => {
   };
 
   const viewOrderDetail = (order: Order) => {
-    // Validation for weight before viewing order detail
-    if (order.weight < 6) {
-      toast.error("Poids minimum 6 kg");
-      return;
-    }
     navigate('/order-details', { state: { order } });
   };
 
@@ -187,21 +173,9 @@ const Orders: React.FC = () => {
         order.id === selectedOrderId ? { 
           ...order, 
           driverId,
-          driverName: driverMap[driverId] || 'Livreur assigné',
-          driverConfirmed: false // Initialize as false
+          driverName: driverMap[driverId] || 'Livreur assigné'
         } : order
       ));
-      
-      // Mock API call and SMS notification with timeout
-      setTimeout(() => {
-        setOrders(prev => prev.map(order => 
-          order.id === selectedOrderId ? {
-            ...order,
-            driverConfirmed: true
-          } : order
-        ));
-      }, 2000);
-      
       setSelectedOrderId(null);
     }
   };
@@ -230,11 +204,10 @@ const Orders: React.FC = () => {
       </div>
 
       <Tabs defaultValue="all" value={activeTab} onValueChange={setActiveTab}>
-        <TabsList className="grid grid-cols-5"> {/* Changed to accommodate the new tab */}
+        <TabsList className="grid grid-cols-4">
           <TabsTrigger value="all">Tout</TabsTrigger>
           <TabsTrigger value="pending">En attente</TabsTrigger>
           <TabsTrigger value="collected">Collecté</TabsTrigger>
-          <TabsTrigger value="ironed">Repassé</TabsTrigger> {/* Added new tab */}
           <TabsTrigger value="delivered">Livré</TabsTrigger>
         </TabsList>
         
@@ -246,7 +219,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
-              onAssignDriver={(e) => order.accepted && order.status === 'pending' && !order.driverId && openDriverAssignment(order.id, e)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -259,7 +232,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
-              onAssignDriver={(e) => order.accepted && order.status === 'pending' && !order.driverId && openDriverAssignment(order.id, e)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -272,20 +245,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
-              onAssignDriver={(e) => order.accepted && order.status === 'pending' && !order.driverId && openDriverAssignment(order.id, e)}
-            />
-          ))}
-        </TabsContent>
-        
-        <TabsContent value="ironed" className="space-y-4 mt-4">
-          {filterOrders('ironed').map((order) => (
-            <OrderCard 
-              key={order.id}
-              order={order}
-              getStatusColor={getStatusColor}
-              getStatusLabel={getStatusLabel}
-              onClick={() => viewOrderDetail(order)}
-              onAssignDriver={(e) => order.accepted && order.status === 'pending' && !order.driverId && openDriverAssignment(order.id, e)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -298,7 +258,7 @@ const Orders: React.FC = () => {
               getStatusColor={getStatusColor}
               getStatusLabel={getStatusLabel}
               onClick={() => viewOrderDetail(order)}
-              onAssignDriver={(e) => order.accepted && order.status === 'pending' && !order.driverId && openDriverAssignment(order.id, e)}
+              onAssignDriver={(e) => order.options?.delivery && !order.driverId && openDriverAssignment(order.id, e)}
             />
           ))}
         </TabsContent>
@@ -355,36 +315,20 @@ const OrderCard: React.FC<OrderCardProps> = ({
           <div>
             <div className="font-medium">Commande #{order.id}</div>
             <div className="text-sm text-gray-500">Client: {order.clientName}</div>
-            {order.clientDetails && (
-              <div className="text-xs text-gray-500">
-                {order.clientDetails.firstName || ''} {order.clientDetails.lastName || ''} 
-                {order.clientDetails.phone && ` • ${order.clientDetails.phone}`}
-              </div>
-            )}
           </div>
           <div className="text-right">
             <div className="text-primary font-semibold">{order.price.toLocaleString()} FCFA</div>
             <div className="text-xs text-gray-500">{order.date} {order.time}</div>
-            {order.formulaType && (
-              <span className="text-[10px] bg-gray-200 rounded px-1">
-                {order.formulaType === 'basic' ? 'Formule de base' : 'Formule détaillée'}
-              </span>
-            )}
           </div>
         </div>
         <div className="mt-3 flex justify-between items-center">
           <span className={`text-xs rounded-full px-2 py-1 ${getStatusColor(order.status)}`}>
             {getStatusLabel(order.status)}
           </span>
-          <div className="flex items-center gap-1">
-            {order.options?.express && <Zap className="h-3 w-3 text-yellow-500" />}
-            {order.options?.drying && <Drying className="h-3 w-3 text-orange-500" />}
-            {order.options?.ironing && <MagicWand className="h-3 w-3 text-purple-500" />}
-            <span className="text-xs text-gray-500 ml-1">{order.weight} kg</span>
-          </div>
+          <span className="text-xs text-gray-500">{order.weight} kg</span>
         </div>
         
-        {order.options?.delivery && order.status === 'pending' && order.accepted && !order.driverId && (
+        {order.options?.delivery && order.status === 'pending' && !order.driverId && (
           <div className="mt-3 flex justify-between">
             <Button
               size="sm"
