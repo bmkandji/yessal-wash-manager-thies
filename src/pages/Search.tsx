@@ -152,56 +152,88 @@ const Search: React.FC = () => {
           Rechercher un client ou scanner sa carte
         </p>
       </div>
-/* 🔻 placer juste sous le bloc infos-client */
-{selectedClient && (
-  <>
-    {/* si géoloc → carte */}
-    {selectedClient.geo ? (
-      <MapContainer
-        center={[selectedClient.geo.lat, selectedClient.geo.lng]}
-        zoom={14}
-        className="h-56 rounded-lg overflow-hidden"
-      >
-        <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Marker position={[selectedClient.geo.lat, selectedClient.geo.lng]} />
-      </MapContainer>
-    ) : (
-      /* sinon adresse texte si présente */
-      selectedClient.address && !editAddress && (
-        <div className="p-3 bg-muted/50 rounded-lg">
-          {selectedClient.address}
-        </div>
-      )
+    {selectedClient && (
+      <>
+        {/* si géoloc → carte */}
+        {selectedClient.geo ? (
+          <MapContainer
+            center={[selectedClient.geo.lat, selectedClient.geo.lng]}
+            zoom={14}
+            className="h-56 rounded-lg overflow-hidden"
+          >
+            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+            <Marker position={[selectedClient.geo.lat, selectedClient.geo.lng]} />
+          </MapContainer>
+        ) : (
+          /* sinon adresse texte si présente */
+          selectedClient.address && !editAddress && (
+            <div className="p-3 bg-muted/50 rounded-lg">
+              {selectedClient.address}
+            </div>
+          )
+        )}
+    
+        {/* case « Modifier l’adresse » */}  
+        {(selectedClient.address || !selectedClient.geo) && (
+          <div className="flex items-center gap-2 mt-2">
+            <input
+              id="editAddress"
+              type="checkbox"
+              checked={editAddress}
+              onChange={(e) => setEditAddress(e.target.checked)}
+              className="h-4 w-4 accent-primary"
+            />
+            <label htmlFor="editAddress" className="text-sm">
+              Modifier l’adresse
+            </label>
+          </div>
+        )}
+    
+        {/* zone texte si adresse manquante OU édition demandée */}  
+        {(!selectedClient.address || editAddress) && (
+          <textarea
+            className="mt-2 w-full border rounded-md p-2"
+            placeholder="Entrer l’adresse précise…"
+            required
+            value={addressInput}
+            onChange={(e) => setAddressInput(e.target.value)}
+          />
+        )}
+      </>
     )}
 
-    {/* case « Modifier l’adresse » */}  
-    {(selectedClient.address || !selectedClient.geo) && (
-      <div className="flex items-center gap-2 mt-2">
-        <input
-          id="editAddress"
-          type="checkbox"
-          checked={editAddress}
-          onChange={(e) => setEditAddress(e.target.checked)}
-          className="h-4 w-4 accent-primary"
-        />
-        <label htmlFor="editAddress" className="text-sm">
-          Modifier l’adresse
-        </label>
-      </div>
-    )}
-
-    {/* zone texte si adresse manquante OU édition demandée */}  
-    {(!selectedClient.address || editAddress) && (
-      <textarea
-        className="mt-2 w-full border rounded-md p-2"
-        placeholder="Entrer l’adresse précise…"
+            <div className="grid gap-1">
+      <label htmlFor="indicativeWeight" className="text-sm font-medium">
+        Poids indicatif (kg) <span className="text-destructive">*</span>
+      </label>
+      <Input
+        id="indicativeWeight"
+        type="number"
+        min={6}
+        step={0.1}
+        value={weight}
+        onChange={(e) => setWeight(parseFloat(e.target.value))}
         required
-        value={addressInput}
-        onChange={(e) => setAddressInput(e.target.value)}
       />
-    )}
-  </>
-)}
+    </div>
+
+    <div className="mt-4">
+      <p className="text-sm font-medium mb-2">Formule</p>
+      <RadioGroup
+        value={formula}
+        onValueChange={(val) => setFormula(val as 'base' | 'detaillee')}
+        className="flex gap-4"
+      >
+        <div className="flex items-center gap-2">
+          <RadioGroupItem id="rb-base" value="base" />
+          <label htmlFor="rb-base" className="text-sm">Formule de base</label>
+        </div>
+        <div className="flex items-center gap-2">
+          <RadioGroupItem id="rb-det" value="detaillee" />
+          <label htmlFor="rb-det" className="text-sm">Formule détaillée</label>
+        </div>
+      </RadioGroup>
+    </div>
 
       {showGuestForm ? (
         <div className="space-y-4">
