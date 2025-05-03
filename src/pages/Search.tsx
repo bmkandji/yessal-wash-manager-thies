@@ -8,6 +8,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
 import { toast } from "sonner";
 import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface Client {
   id: string;
@@ -51,7 +52,10 @@ const Search: React.FC = () => {
   const navigate = useNavigate();
   const [addressInput, setAddressInput] = useState('');
   const [editAddress, setEditAddress]   = useState(false);
-
+  // Add missing weight state
+  const [weight, setWeight] = useState<number>(6);
+  // Add missing formula state
+  const [formula, setFormula] = useState<'base' | 'detaillee'>('base');
 
   // Effet pour la recherche dynamique
   useEffect(() => {
@@ -156,14 +160,9 @@ const Search: React.FC = () => {
       <>
         {/* si géoloc → carte */}
         {selectedClient.geo ? (
-          <MapContainer
-            center={[selectedClient.geo.lat, selectedClient.geo.lng]}
-            zoom={14}
-            className="h-56 rounded-lg overflow-hidden"
-          >
-            <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-            <Marker position={[selectedClient.geo.lat, selectedClient.geo.lng]} />
-          </MapContainer>
+          <div className="h-56 bg-gray-200 rounded-lg overflow-hidden flex items-center justify-center">
+            <span className="text-muted-foreground">Carte localisation</span>
+          </div>
         ) : (
           /* sinon adresse texte si présente */
           selectedClient.address && !editAddress && (
@@ -173,7 +172,7 @@ const Search: React.FC = () => {
           )
         )}
     
-        {/* case « Modifier l’adresse » */}  
+        {/* case « Modifier l'adresse » */}  
         {(selectedClient.address || !selectedClient.geo) && (
           <div className="flex items-center gap-2 mt-2">
             <input
@@ -184,7 +183,7 @@ const Search: React.FC = () => {
               className="h-4 w-4 accent-primary"
             />
             <label htmlFor="editAddress" className="text-sm">
-              Modifier l’adresse
+              Modifier l'adresse
             </label>
           </div>
         )}
@@ -193,7 +192,7 @@ const Search: React.FC = () => {
         {(!selectedClient.address || editAddress) && (
           <textarea
             className="mt-2 w-full border rounded-md p-2"
-            placeholder="Entrer l’adresse précise…"
+            placeholder="Entrer l'adresse précise…"
             required
             value={addressInput}
             onChange={(e) => setAddressInput(e.target.value)}
@@ -202,38 +201,38 @@ const Search: React.FC = () => {
       </>
     )}
 
-            <div className="grid gap-1">
-      <label htmlFor="indicativeWeight" className="text-sm font-medium">
-        Poids indicatif (kg) <span className="text-destructive">*</span>
-      </label>
-      <Input
-        id="indicativeWeight"
-        type="number"
-        min={6}
-        step={0.1}
-        value={weight}
-        onChange={(e) => setWeight(parseFloat(e.target.value))}
-        required
-      />
-    </div>
+      <div className="grid gap-1">
+        <label htmlFor="indicativeWeight" className="text-sm font-medium">
+          Poids indicatif (kg) <span className="text-destructive">*</span>
+        </label>
+        <Input
+          id="indicativeWeight"
+          type="number"
+          min={6}
+          step={0.1}
+          value={weight}
+          onChange={(e) => setWeight(parseFloat(e.target.value))}
+          required
+        />
+      </div>
 
-    <div className="mt-4">
-      <p className="text-sm font-medium mb-2">Formule</p>
-      <RadioGroup
-        value={formula}
-        onValueChange={(val) => setFormula(val as 'base' | 'detaillee')}
-        className="flex gap-4"
-      >
-        <div className="flex items-center gap-2">
-          <RadioGroupItem id="rb-base" value="base" />
-          <label htmlFor="rb-base" className="text-sm">Formule de base</label>
-        </div>
-        <div className="flex items-center gap-2">
-          <RadioGroupItem id="rb-det" value="detaillee" />
-          <label htmlFor="rb-det" className="text-sm">Formule détaillée</label>
-        </div>
-      </RadioGroup>
-    </div>
+      <div className="mt-4">
+        <p className="text-sm font-medium mb-2">Formule</p>
+        <RadioGroup
+          value={formula}
+          onValueChange={(val) => setFormula(val as 'base' | 'detaillee')}
+          className="flex gap-4"
+        >
+          <div className="flex items-center gap-2">
+            <RadioGroupItem id="rb-base" value="base" />
+            <label htmlFor="rb-base" className="text-sm">Formule de base</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <RadioGroupItem id="rb-det" value="detaillee" />
+            <label htmlFor="rb-det" className="text-sm">Formule détaillée</label>
+          </div>
+        </RadioGroup>
+      </div>
 
       {showGuestForm ? (
         <div className="space-y-4">
