@@ -1,13 +1,23 @@
-
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Input } from "@/components/ui/input";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent } from "@/components/ui/card";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Search as SearchIcon, ScanQrCode, User, X } from 'lucide-react';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { useAutoAnimate } from "@formkit/auto-animate/react";
+import {
+  Input,
+  Button,
+  Card,
+  CardContent,
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui"; // ↳ regroupe vos exports shadcn
+import { Search as SearchIcon, ScanQrCode, User, X } from "lucide-react";
 import { toast } from "sonner";
-import { startQrScanner, parseQrCodeData } from '@/utils/qrCodeScanner';
+import { startQrScanner, parseQrCodeData } from "@/utils/qrCodeScanner";
 
 interface Client {
   id: string;
@@ -15,317 +25,224 @@ interface Client {
   phone: string;
   cardNumber: string;
 }
-
 interface GuestContact {
+  lastName?: string;
+  firstName?: string;
+  address?: string;
   phone?: string;
   email?: string;
 }
 
 const mockClients: Client[] = [
-  { id: '1', name: 'Abdou Diop', phone: '77 123 45 67', cardNumber: 'Y10012' },
-  { id: '2', name: 'Fatou Ndiaye', phone: '70 876 54 32', cardNumber: 'Y10025' },
-  { id: '3', name: 'Moustapha Seck', phone: '76 543 21 98', cardNumber: 'Y10037' },
-  { id: '4', name: 'Aminata Fall', phone: '78 765 43 21', cardNumber: 'Y10042' },
-  { id: '5', name: 'Ousmane Diallo', phone: '77 987 65 43', cardNumber: 'Y10056' },
+  { id: "1", name: "Abdou Diop", phone: "77 123 45 67", cardNumber: "Y10012" },
+  { id: "2", name: "Fatou Ndiaye", phone: "70 876 54 32", cardNumber: "Y10025" },
+  { id: "3", name: "Moustapha Seck", phone: "76 543 21 98", cardNumber: "Y10037" },
+  { id: "4", name: "Aminata Fall", phone: "78 765 43 21", cardNumber: "Y10042" },
+  { id: "5", name: "Ousmane Diallo", phone: "77 987 65 43", cardNumber: "Y10056" },
 ];
 
 const Search: React.FC = () => {
-  const [searchQuery, setSearchQuery] = useState('');
+  /* ───────────────────────── state ───────────────────────── */
+  const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<Client[]>([]);
   const [isScanning, setIsScanning] = useState(false);
-  const [selectedClient, setSelectedClient] = useState<Client | null>(null);
-  const [showSearchResults, setShowSearchResults] = useState(true);
   const [guestContact, setGuestContact] = useState<GuestContact>({});
   const [showGuestForm, setShowGuestForm] = useState(false);
   const navigate = useNavigate();
+  const [parent] = useAutoAnimate<HTMLDivElement>();
 
-  // Effet pour la recherche dynamique
+  /* ────────────────────── live filtering ──────────────────── */
   useEffect(() => {
-    if (searchQuery.trim()) {
-      // Filtrer les clients en fonction de la recherche
-      const results = mockClients.filter(client => 
-        client.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        client.phone.replace(/\s/g, '').includes(searchQuery.replace(/\s/g, '')) ||
-        client.cardNumber.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-      setSearchResults(results);
-      setShowSearchResults(true);
-    } else {
-      setSearchResults([]);
-    }
+    const q = searchQuery.trim().toLowerCase();
+    setSearchResults(
+      q
+        ? mockClients.filter(
+            (c) =>
+              c.name.toLowerCase().includes(q) ||
+              c.phone.replace(/\s/g, "").includes(q.replace(/\s/g, "")) ||
+              c.cardNumber.toLowerCase().includes(q),
+          )
+        : [],
+    );
   }, [searchQuery]);
 
+  /* ───────────────────────── helpers ───────────────────────── */
   const resetSearch = () => {
-    setSearchQuery('');
+    setSearchQuery("");
     setSearchResults([]);
-    setSelectedClient(null);
-    setShowSearchResults(true);
     setShowGuestForm(false);
     setGuestContact({});
   };
 
   const startScanning = async () => {
     setIsScanning(true);
-    
     try {
-      // Call the actual scanner utility
-      const qrData = await startQrScanner();
-      const parsedData = parseQrCodeData(qrData);
-      
-      if (parsedData && parsedData.clientId) {
-        const foundClient = mockClients.find(client => client.id === parsedData.clientId);
-        
-        if (foundClient) {
-          setSelectedClient(foundClient);
-          setSearchResults([foundClient]);
-          toast.success(`Client trouvé: ${foundClient.name}`);
-          
-          // Redirect directly to new order with this client
-          navigate('/new-order', { state: { client: foundClient } });
-        } else {
-          toast.error("Aucun client trouvé avec ce code");
-        }
+      const data = parseQrCodeData(await startQrScanner());
+      const client = mockClients.find((c) => c.id === data?.clientId);
+      if (client) {
+        navigate("/new-order", { state: { client } });
       } else {
-        toast.error("QR code invalide");
+        toast.error("Aucun client trouvé");
       }
-    } catch (error) {
-      toast.error("Erreur lors du scan");
+    } catch {
+      toast.error("Erreur scan");
     } finally {
       setIsScanning(false);
     }
   };
 
-  const selectClient = (client: Client) => {
-    setSelectedClient(client);
-    navigate('/new-order', { state: { client } });
-  };
-
-  const showGuestContactForm = () => {
-    setShowGuestForm(true);
-  };
-
-  const handleGuestContactSubmit = () => {
-    // Store contact info and proceed to order creation
-    navigate('/new-order', { 
-      state: { 
-        clientType: 'non-registered',
-        guestContact 
-      } 
-    });
-  };
-
-  const skipGuestContact = () => {
-    // Proceed without contact info
-    navigate('/new-order', { state: { clientType: 'non-registered' } });
-  };
-
+  /* ───────────────────────── render ───────────────────────── */
   return (
-    <div className="space-y-6 pb-8">
-      <div>
-        <h1 className="text-2xl font-bold tracking-tight">Commande Client</h1>
+    <div className="mx-auto max-w-3xl p-6 space-y-8">
+      {/* header */}
+      <header className="space-y-1">
+        <h1 className="text-3xl font-bold tracking-tight">Commande client</h1>
         <p className="text-muted-foreground">
-          Rechercher un client ou scanner sa carte
+          Recherchez un client ou scannez sa carte
         </p>
-      </div>
+      </header>
 
+      {/* guest form */}
       {showGuestForm ? (
-        <div className="space-y-4">
-          <h2 className="text-lg font-semibold">Coordonnées du client (facultatif)</h2>
-          <p className="text-sm text-gray-500">
-            Ces informations seront utilisées pour l'envoi de la facture. Le client peut choisir de ne pas les fournir.
-          </p>
-          <div>
-            <label htmlFor="guestLastName" className="text-sm font-medium">
-              Nom
-            </label>
-            <Input
-              id="guestLastName"
-              placeholder="Ex : Ndiaye"
-              value={guestContact.lastName || ''}
-              onChange={(e) =>
-                setGuestContact({ ...guestContact, lastName: e.target.value })
-              }
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="guestFirstName" className="text-sm font-medium">
-              Prénom
-            </label>
-            <Input
-              id="guestFirstName"
-              placeholder="Ex : Fatou"
-              value={guestContact.firstName || ''}
-              onChange={(e) =>
-                setGuestContact({ ...guestContact, firstName: e.target.value })
-              }
-            />
-          </div>
-          
-          <div>
-            <label htmlFor="guestAddress" className="text-sm font-medium">
-              Adresse
-            </label>
-            <Input
-              id="guestAddress"
-              placeholder="Ex : 24 rue des Manguiers, Dakar"
-              value={guestContact.address || ''}
-              onChange={(e) =>
-                setGuestContact({ ...guestContact, address: e.target.value })
-              }
-            />
-          </div>
-          <div className="space-y-4">
-            <div>
-              <label htmlFor="guestPhone" className="text-sm font-medium">
-                Numéro de téléphone
+        <div className="space-y-6">
+          <h2 className="text-lg font-semibold">Coordonnées (facultatif)</h2>
+
+          {[
+            { id: "guestLastName", label: "Nom", key: "lastName" },
+            { id: "guestFirstName", label: "Prénom", key: "firstName" },
+            { id: "guestAddress", label: "Adresse", key: "address" },
+            { id: "guestPhone", label: "Téléphone", key: "phone" },
+            { id: "guestEmail", label: "Email", type: "email", key: "email" },
+          ].map(({ id, label, key, type }) => (
+            <div key={id} className="grid gap-1">
+              <label htmlFor={id} className="text-sm font-medium">
+                {label}
               </label>
-              <Input 
-                id="guestPhone" 
-                type="tel" 
-                placeholder="Ex: 77 123 45 67" 
-                value={guestContact.phone || ''}
-                onChange={(e) => setGuestContact({...guestContact, phone: e.target.value})}
+              <Input
+                id={id}
+                type={type}
+                value={(guestContact as any)[key] || ""}
+                onChange={(e) =>
+                  setGuestContact({ ...guestContact, [key]: e.target.value })
+                }
               />
             </div>
-            
-            <div>
-              <label htmlFor="guestEmail" className="text-sm font-medium">
-                Email
-              </label>
-              <Input 
-                id="guestEmail" 
-                type="email" 
-                placeholder="Ex: client@example.com" 
-                value={guestContact.email || ''}
-                onChange={(e) => setGuestContact({...guestContact, email: e.target.value})}
-              />
-            </div>
-          </div>
-          
-          <div className="flex gap-2">
-            <Button 
-              className="flex-1"
-              variant="default" 
-              onClick={handleGuestContactSubmit}
-            >
+          ))}
+
+          <div className="flex gap-3">
+            <Button className="flex-1" onClick={() => navigate("/new-order", { state: { clientType: "non-registered", guestContact } })}>
               Continuer
             </Button>
-            <Button 
+            <Button
               className="flex-1"
-              variant="outline" 
-              onClick={skipGuestContact}
+              variant="outline"
+              onClick={() => navigate("/new-order", { state: { clientType: "non-registered" } })}
             >
-              Passer cette étape
+              Passer
             </Button>
           </div>
-          
-          <Button 
-            variant="ghost" 
-            className="w-full"
-            onClick={resetSearch}
-          >
-            Annuler et revenir à la recherche
+          <Button variant="ghost" className="w-full" onClick={resetSearch}>
+            Annuler
           </Button>
         </div>
       ) : (
+        /* search / scan tabs */
         <Tabs defaultValue="search">
-          <TabsList className="grid grid-cols-2">
+          <TabsList className="bg-muted/50 p-1 rounded-lg shadow-inner grid grid-cols-2">
             <TabsTrigger value="search">Recherche</TabsTrigger>
             <TabsTrigger value="scan">Scanner</TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="search" className="space-y-4">
-            <div className="flex gap-2 relative">
-              <Input 
-                placeholder="Nom, téléphone ou numéro de carte" 
+
+          {/* search */}
+          <TabsContent value="search" className="space-y-6">
+            <div className="relative flex">
+              <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Nom, téléphone ou N° carte"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pr-10"
+                className="pl-9 pr-10"
               />
               {searchQuery && (
-                <Button 
-                  size="sm" 
-                  variant="ghost" 
-                  className="absolute right-2 top-1/2 transform -translate-y-1/2 h-8 w-8 p-0" 
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
                   onClick={resetSearch}
                 >
                   <X className="h-4 w-4" />
                 </Button>
               )}
-              <Button type="button" onClick={() => setSearchQuery(searchQuery)}>
-                <SearchIcon className="h-4 w-4 mr-2" />
-                Rechercher
-              </Button>
             </div>
-            
-            {showSearchResults && searchResults.length > 0 ? (
-              <div className="space-y-2">
-                {searchResults.map((client) => (
-                  <Card 
-                    key={client.id} 
-                    className="cursor-pointer hover:bg-gray-50" 
-                    onClick={() => selectClient(client)}
-                  >
-                    <CardContent className="p-4">
-                      <div className="flex justify-between items-center">
-                        <div>
-                          <div className="font-medium">{client.name}</div>
-                          <div className="text-sm text-gray-500">Tél: {client.phone}</div>
-                        </div>
-                        <div className="text-right">
-                          <div className="text-primary font-semibold">{client.cardNumber}</div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
-            ) : searchQuery ? (
-              <div className="text-center py-8">
-                <p className="text-gray-500">Aucun client trouvé</p>
-                <Button className="mt-4" onClick={resetSearch}>
-                  Nouvelle recherche
-                </Button>
-              </div>
-            ) : null}
-          </TabsContent>
-          
-          <TabsContent value="scan" className="space-y-4">
-            <div className="bg-gray-100 rounded-lg aspect-square flex items-center justify-center">
-              {isScanning ? (
-                <div className="text-center">
-                  <div className="animate-pulse">
-                    <ScanQrCode className="h-12 w-12 text-primary mx-auto" />
+
+            {/* results */}
+            {searchQuery && (
+              <div ref={parent}>
+                {searchResults.length ? (
+                  <div className="grid sm:grid-cols-2 gap-4">
+                    {searchResults.map((c) => (
+                      <Card
+                        key={c.id}
+                        onClick={() => navigate("/new-order", { state: { client: c } })}
+                        className="cursor-pointer hover:ring-2 hover:ring-primary/40 transition"
+                      >
+                        <CardContent className="p-4 space-y-1">
+                          <p className="font-medium">{c.name}</p>
+                          <p className="text-sm text-muted-foreground">
+                            {c.phone}
+                          </p>
+                          <p className="text-right font-semibold">{c.cardNumber}</p>
+                        </CardContent>
+                      </Card>
+                    ))}
                   </div>
-                  <p className="mt-4">Scan en cours...</p>
-                </div>
-              ) : (
-                <div className="text-center">
-                  <ScanQrCode className="h-12 w-12 text-gray-400 mx-auto" />
-                  <p className="mt-4">Prêt à scanner</p>
-                  <Button className="mt-4" onClick={startScanning}>
-                    Démarrer le scan
-                  </Button>
-                </div>
-              )}
+                ) : (
+                  <p className="text-center text-muted-foreground py-8">
+                    Aucun résultat
+                  </p>
+                )}
+              </div>
+            )}
+          </TabsContent>
+
+          {/* scan */}
+          <TabsContent value="scan">
+            <div className="flex flex-col items-center gap-6">
+              <ScanQrCode className="h-16 w-16 text-muted-foreground" />
+              <Button onClick={startScanning}>Démarrer le scan</Button>
             </div>
           </TabsContent>
         </Tabs>
       )}
 
+      {/* footer */}
       {!showGuestForm && (
-        <div className="border-t border-gray-200 pt-4">
-          <Button 
-            variant="outline" 
-            className="w-full flex items-center justify-center gap-2"
-            onClick={showGuestContactForm}
+        <footer className="border-t pt-4">
+          <Button
+            variant="outline"
+            className="w-full gap-2"
+            onClick={() => setShowGuestForm(true)}
           >
             <User className="h-4 w-4" />
-            Commande sans compte client
+            Commande sans compte
           </Button>
-        </div>
+        </footer>
       )}
+
+      {/* scanner overlay */}
+      <Dialog open={isScanning} onOpenChange={() => setIsScanning(false)}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle>Scan en cours…</DialogTitle>
+          </DialogHeader>
+          <div className="h-64 flex items-center justify-center">
+            <div className="animate-pulse">
+              <ScanQrCode className="h-24 w-24 text-primary" />
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
