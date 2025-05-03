@@ -14,6 +14,14 @@ interface Client {
   name: string;
   phone: string;
   cardNumber: string;
+  premium?: boolean;
+  student?: boolean;
+  address?: string;
+  coordinates?: {
+    lat: number;
+    lng: number;
+  };
+  monthlyUsage?: number;
 }
 
 interface GuestContact {
@@ -26,11 +34,83 @@ interface GuestContact {
 }
 
 const mockClients: Client[] = [
-  { id: '1', name: 'Abdou Diop', phone: '77 123 45 67', cardNumber: 'Y10012' },
-  { id: '2', name: 'Fatou Ndiaye', phone: '70 876 54 32', cardNumber: 'Y10025' },
-  { id: '3', name: 'Moustapha Seck', phone: '76 543 21 98', cardNumber: 'Y10037' },
-  { id: '4', name: 'Aminata Fall', phone: '78 765 43 21', cardNumber: 'Y10042' },
-  { id: '5', name: 'Ousmane Diallo', phone: '77 987 65 43', cardNumber: 'Y10056' },
+  { 
+    id: '1', 
+    name: 'Abdou Diop', 
+    phone: '77 123 45 67', 
+    cardNumber: 'Y10012',
+    premium: false,
+    student: false,
+    address: 'Rue 10 x 15, Dakar'
+  },
+  { 
+    id: '2', 
+    name: 'Fatou Ndiaye', 
+    phone: '70 876 54 32', 
+    cardNumber: 'Y10025',
+    premium: true,
+    student: false,
+    monthlyUsage: 25,
+    address: 'Avenue Cheikh Anta Diop, Dakar',
+    coordinates: {
+      lat: 14.6937,
+      lng: -17.4441
+    }
+  },
+  { 
+    id: '3', 
+    name: 'Moustapha Seck', 
+    phone: '76 543 21 98', 
+    cardNumber: 'Y10037',
+    premium: false,
+    student: true,
+    address: 'Boulevard du Centenaire, Dakar'
+  },
+  { 
+    id: '4', 
+    name: 'Aminata Fall', 
+    phone: '78 765 43 21', 
+    cardNumber: 'Y10042',
+    premium: true,
+    student: true,
+    monthlyUsage: 10,
+    coordinates: {
+      lat: 14.7645,
+      lng: -17.3660
+    }
+  },
+  { 
+    id: '5', 
+    name: 'Ousmane Diallo', 
+    phone: '77 987 65 43', 
+    cardNumber: 'Y10056',
+    premium: false,
+    student: false
+  },
+  { 
+    id: '6', 
+    name: 'Marie Gomis', 
+    phone: '70 444 55 66', 
+    cardNumber: 'Y10070',
+    premium: true,
+    student: false,
+    monthlyUsage: 38,
+    address: 'Mermoz, Dakar'
+  },
+  { 
+    id: '7', 
+    name: 'Ibrahim Ndoye', 
+    phone: '76 222 33 44', 
+    cardNumber: 'Y10085',
+    premium: true,
+    student: true,
+    monthlyUsage: 0,
+    address: 'Cité Keur Gorgui, Dakar',
+    coordinates: {
+      lat: 14.7247,
+      lng: -17.4877
+    }
+  },
 ];
 
 const Search: React.FC = () => {
