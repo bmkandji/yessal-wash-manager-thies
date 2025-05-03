@@ -134,7 +134,47 @@ const Search: React.FC = () => {
           <p className="text-sm text-gray-500">
             Ces informations seront utilisées pour l'envoi de la facture. Le client peut choisir de ne pas les fournir.
           </p>
+          <div>
+            <label htmlFor="guestLastName" className="text-sm font-medium">
+              Nom
+            </label>
+            <Input
+              id="guestLastName"
+              placeholder="Ex : Ndiaye"
+              value={guestContact.lastName || ''}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, lastName: e.target.value })
+              }
+            />
+          </div>
           
+          <div>
+            <label htmlFor="guestFirstName" className="text-sm font-medium">
+              Prénom
+            </label>
+            <Input
+              id="guestFirstName"
+              placeholder="Ex : Fatou"
+              value={guestContact.firstName || ''}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, firstName: e.target.value })
+              }
+            />
+          </div>
+          
+          <div>
+            <label htmlFor="guestAddress" className="text-sm font-medium">
+              Adresse
+            </label>
+            <Input
+              id="guestAddress"
+              placeholder="Ex : 24 rue des Manguiers, Dakar"
+              value={guestContact.address || ''}
+              onChange={(e) =>
+                setGuestContact({ ...guestContact, address: e.target.value })
+              }
+            />
+          </div>
           <div className="space-y-4">
             <div>
               <label htmlFor="guestPhone" className="text-sm font-medium">
