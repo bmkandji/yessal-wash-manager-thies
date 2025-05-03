@@ -124,7 +124,18 @@ const Search: React.FC = () => {
   };
 
   return (
-    <div className="space-y-6 pb-8">
+      <div className="space-y-6 pb-8">
+      {(selectedClient || guestContact.firstName) && (
+          <div className="border rounded-lg p-4 space-y-1 bg-muted/50">
+            <p className="font-semibold">
+              {selectedClient?.firstName ?? guestContact.firstName}{" "}
+              {selectedClient?.lastName ?? guestContact.lastName}
+            </p>
+            <p className="text-sm text-muted-foreground">
+              {selectedClient?.phone ?? guestContact.phone}
+            </p>
+          </div>
+        )}
       <div>
         <h1 className="text-2xl font-bold tracking-tight">Commande Client</h1>
         <p className="text-muted-foreground">
